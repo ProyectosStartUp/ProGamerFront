@@ -1,0 +1,79 @@
+.hub-container-fluid {
+    width: calc(100vw - 24px) !important;
+    max-width: 1620px !important;
+    padding: 0px !important;
+    margin: auto !important;
+}
+
+.navbar-toggler {
+    box-shadow: none !important;
+    outline: 0 !important;
+}
+
+.hub-navbar-brand > img {
+    height: 60px;
+}
+
+.hub-input-navbar {
+    height: 40px;
+}
+
+.hub-button-navbar {
+    height: 44px;
+    width: 44px;
+    padding: 0px !important;
+    border-radius: 40px;
+    border-width: 0px;
+    flex-shrink: 0;
+}
+
+.hub-button-navbar > i {
+    font-size: 24px;
+    color: #fff;
+}
+
+
+.hub-bg-dark {
+    background-color: #000000 !important;
+}
+
+.hub-bg-grey {
+    background-color: #101214 !important;
+}
+
+
+.carouselProductos .carousel-control-prev span {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-left: 20px;
+}
+
+.carouselProductos .carousel-control-prev {
+    background-color: #000000;
+    height: 60px;
+    width: 60px;
+    border-radius: 60px;
+    top: 215px;
+    left: -30px;
+}
+
+.carouselProductos .carousel-control-prev span {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-left: 20px;
+}
+
+.carouselProductos .carousel-control-next {
+    background-color: #000000;
+    height: 60px;
+    width: 60px;
+    border-radius: 60px;
+    top: 215px;
+    right: -30px;
+}
+
+.carouselProductos .carousel-control-next span {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 20px;
+}

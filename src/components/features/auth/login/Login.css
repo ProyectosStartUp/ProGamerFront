@@ -1,0 +1,78 @@
+.hub-login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #000000;
+  background: linear-gradient(
+    135deg,
+    rgba(38, 139, 28, 0.3) 0%,
+    rgba(23, 48, 146, 0.3) 20%,
+    rgba(0, 0, 0, 1) 33%,
+    rgba(5, 19, 3, 0.3) 84%,
+    rgba(38, 141, 25, 0.1) 99%
+  );
+}
+
+.hub-login-back {
+    position: absolute;
+    top: 16px;
+    left: 2%;
+}
+
+.hub-login-back a {
+    font-size: 13px;
+}
+
+.hub-login-back a i {
+    font-size: 20px;
+    line-height: 28px;
+}
+
+.hub-login-social {
+    position: relative;
+    min-height: 1px;
+    display: flex;
+    justify-content: space-around;
+}
+
+.hub-login-social > .btn {
+    border: 1px solid #212529;
+    line-height: normal;
+    flex: 1;
+    padding: 10px 20px;
+}
+
+.o-linea {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 20px 0;
+    font-family: sans-serif;
+}
+
+.o-linea span {
+    padding: 0 10px;
+    font-size: 18px;
+    font-weight: 400;
+    color: #fffdfd;
+    background-color: transparent;
+    position: relative;
+    z-index: 1;
+}
+
+.o-linea::before,
+.o-linea::after {
+    content: "";
+    flex-grow: 1;
+    height: 1px;
+    background-color: #212529;
+    margin: 0 2px;
+}
+
+input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+        -webkit-box-shadow: 0 0 0px 1000px #212529 inset !important; /* Overrides background */
+        -webkit-text-fill-color: white !important; /* Changes text color */
+    }

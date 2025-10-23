@@ -1,0 +1,273 @@
+import React, { useState, useRef, type ChangeEvent, type KeyboardEvent } from "react";
+import { Form, Button, Container, Row, Col } from "react-bootstrap";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+
+import ToastNotification from "../../../common/ToastNotification";
+import type { IVerifyAccount } from "../../../../interfaces/login";
+import usePostGenericHook from "../../../../hooks/accessData/usePostGenericHook";
+import type { IRespuesta } from "../../../../interfaces/Respuesta";
+
+
+const VerifyAccount: React.FC = () => {
+  const [code, setCode] = useState<string[]>(["", "", "", "", "", ""]);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  // const [setDataVerify] = useState<IVerifyAccount>({
+  //     codigo: '',
+  //     usuario: '',
+  //     uKey : '',
+  // })
+  const {postData, isLoading}= usePostGenericHook<IVerifyAccount, IRespuesta>("usuarios/ConfirmarCorreo");
+  const [params]   = useSearchParams();
+  const [respuesta, setRespuesta] = useState<IRespuesta>({
+    exito:false,
+    mensaje:'',
+    error:'',
+    data:[]
+    });
+  
+  // Referencias para los inputs
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
+  const navigate = useNavigate();
+
+  // Manejar cambio en los inputs
+  const handleInputChange = (index: number, value: string) => {
+    // Solo permitir un carácter alfanumérico
+    const sanitizedValue = value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    
+    if (sanitizedValue.length <= 1) {
+      const newCode = [...code];
+      newCode[index] = sanitizedValue;
+      setCode(newCode);
+
+      // Mover al siguiente input automáticamente
+      if (sanitizedValue && index < 5) {
+        inputRefs.current[index + 1]?.focus();
+      }
+    }
+  };
+
+  // Manejar teclas especiales
+  const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
+    // Backspace: borrar y volver al input anterior
+    if (e.key === "Backspace" && !code[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+    
+    // Flechas izquierda/derecha para navegar
+    if (e.key === "ArrowLeft" && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+    if (e.key === "ArrowRight" && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  // Manejar pegado de código completo
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    
+    const newCode = [...code];
+    for (let i = 0; i < Math.min(pastedData.length, 6); i++) {
+      newCode[i] = pastedData[i];
+    }
+    setCode(newCode);
+    
+    // Enfocar el último input lleno o el primero vacío
+    const nextEmptyIndex = newCode.findIndex(c => !c);
+    const focusIndex = nextEmptyIndex === -1 ? 5 : nextEmptyIndex;
+    inputRefs.current[focusIndex]?.focus();
+  };
+
+
+  const handleVerifyAccount = async () => {
+
+    //unimos los digitoscapturados por el usuario
+    const verificationCode = code.join("");
+    
+    if (verificationCode.length !== 6) {
+      setRespuesta({
+        exito:false,
+        mensaje:'',
+        error:'Capture los 6 dígitos enviados a su correo',
+        data:[]
+      })
+
+      return;
+    }
+
+    try {
+
+      const _data : IVerifyAccount = {
+        codigo: verificationCode,
+        usuario: params.get('user')?.toString()!,
+        uKey : params.get('token')?.toString()!,
+      }
+      
+      var response = await postData(_data!);
+
+      
+      if (response) {
+
+        setRespuesta(response)
+        setShowSuccessToast(true);
+
+        if(response.exito){
+            setTimeout(() => {
+            navigate("/login");
+          }, 3000);
+        }
+        
+        
+      } 
+    } catch (error) {
+      console.error("Error al verificar cuenta:", error);
+      setRespuesta({
+        exito:false,
+        mensaje:'',
+        error:'Error al verificar cuenta: '+ error,
+        data:[]
+      })
+      
+    } 
+  };
+
+  const handleResendCode = async () => {
+    try {
+      
+      console.log("Reenviando código...");
+
+      setShowSuccessToast(true);
+    } catch (error) {
+      console.error("Error al reenviar código:", error);
+    }
+  };
+
+  return (
+    <div className="hub-login-container">
+      <ToastNotification
+        show={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+        // message={respuesta.exito ? respuesta.mensaje : respuesta.error}
+        message={respuesta.exito ? "Cuenta verificada correctamente! Redirigiendo..." : "Hubo un problema al verificar la cuenta" }
+        header="Notificación!"
+        bg={respuesta.exito ? "success":"danger"}
+        delay={4000}
+        position="top-end"
+      />
+
+
+      <div className="hub-login-back" style={{ top: "16px" }}>
+        <Link to={"/login"} className="text-light">
+          <i className="bi bi-arrow-left me-1 float-start"></i>
+          Regresar
+        </Link>
+      </div>
+
+      <div
+        style={{
+          width: "100%",
+          height: 160,
+          top: 0,
+          overflow: "hidden",
+          display: "none"
+        }}
+        className="bg-dark position-absolute"
+      >
+        <img src="../banner-1.png" alt="Banner" />
+      </div>
+
+      <Container className="mt-5 mb-4" style={{ zIndex: "2" }}>
+        <Row className="justify-content-md-center">
+          <Col md={5}>
+            <div className="text-center mb-4">
+              <h2 className="mb-2 text-white">
+                Verifica tu cuenta
+              </h2>
+              <p className="text-light" style={{ fontSize: "14px", opacity: 0.8 }}>
+                Ingresa el código de 6 caracteres que enviamos a tu correo electrónico
+              </p>
+            </div>
+
+            <Form.Group className="mb-4">
+              <div className="d-flex justify-content-center gap-2">
+                {code.map((digit, index) => (
+                  <Form.Control
+                    key={index}
+                    ref={(el) => {
+                      inputRefs.current[index] = el;
+                    }}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange(index, e.target.value)
+                    }
+                    onKeyDown={(e: KeyboardEvent<HTMLInputElement>) =>
+                      handleKeyDown(index, e)
+                    }
+                    onPaste={handlePaste}
+                    style={{
+                      width: "50px",
+                      height: "60px",
+                      // fontSize: "24px",
+                      fontWeight: "bold",
+                      // textAlign: "center",
+                      // textTransform: "uppercase",
+                      // backgroundColor: "#2a2a2a",
+                      // color: "#ffffff !important",
+                      // border: "2px solid #444"
+                    }}
+                    className="text-center"
+                  />
+                ))}
+              </div>
+            </Form.Group>
+
+            <Button
+              type="submit"
+              className="w-100 hub-btn-gamer mb-3"
+              disabled={isLoading || code.some(c => !c)}
+              onClick={handleVerifyAccount}
+            >
+              {isLoading ? (
+                <>
+                  <span
+                    className="spinner-grow spinner-grow-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Verificando...
+                </>
+              ) : (
+                "Verificar Cuenta"
+              )}
+            </Button>
+
+            <div className="text-center">
+              <p className="text-light mb-2" style={{ fontSize: "14px" }}>
+                ¿No recibiste el código?
+              </p>
+              <Button
+                variant="link"
+                className="text-light p-0"
+                style={{ 
+                  fontSize: "14px",
+                  textDecoration: "underline",
+                  opacity: 0.8
+                }}
+                onClick={handleResendCode}
+                disabled={isLoading}
+              >
+                Reenviar código
+              </Button>
+            </div>
+          </Col>
+        </Row>
+      </Container>
+    </div>
+  );
+};
+
+export default VerifyAccount;

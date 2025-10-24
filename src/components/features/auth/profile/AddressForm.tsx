@@ -1,25 +1,8 @@
 import React, { useState, useEffect, type ChangeEvent } from "react";
 import { Form, Button, Row, Col } from "react-bootstrap";
+import type { IAddressData, IColonia, IMunicipio, ValidationErrors } from "../../../../interfaces/address";
+import { MUNICIPIOS_DUMMY, getColoniasByCP, getMunicipioByCP } from "../../../../utils/address.data";
 
-export interface IAddressData {
-  usuarioId: string;
-  tipoDireccion: 1 | 2; // 1 = Envío, 2 = Facturación
-  calle: string;
-  numExt: string;
-  numInt: string;
-  codigoPostal: string;
-  colonia: string;
-  municipio: string;
-  referencias?: string; // Solo para direcciones de envío
-}
-
-interface ValidationErrors {
-  calle?: string;
-  numExt?: string;
-  codigoPostal?: string;
-  colonia?: string;
-  municipio?: string;
-}
 
 interface AddressFormProps {
   tipoDireccion: 1 | 2;
@@ -39,23 +22,18 @@ const AddressForm: React.FC<AddressFormProps> = ({
   const [addressData, setAddressData] = useState<IAddressData>({
     usuarioId,
     tipoDireccion,
+    alias: initialData?.alias || "",
     calle: initialData?.calle || "",
     numExt: initialData?.numExt || "",
     numInt: initialData?.numInt || "",
     codigoPostal: initialData?.codigoPostal || "",
-    colonia: initialData?.colonia || "",
-    municipio: initialData?.municipio || "",
+    coloniaId: initialData?.coloniaId || "",
+    municipioId: initialData?.municipioId || "",
     referencias: initialData?.referencias || ""
   });
 
-  const [colonias, setColonias] = useState<string[]>([]);
-  const [municipios] = useState<string[]>([
-    "Pachuca de Soto",
-    "Mineral de la Reforma",
-    "Tulancingo",
-    "Tizayuca",
-    "Huejutla de Reyes"
-  ]);
+  const [colonias, setColonias] = useState<IColonia[]>([]);
+  const [municipios] = useState<IMunicipio[]>(MUNICIPIOS_DUMMY);
 
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
@@ -89,23 +67,35 @@ const AddressForm: React.FC<AddressFormProps> = ({
     const cp = e.target.value;
 
     if (cp.length === 5) {
-      // TODO: Llamar al API para obtener colonias
-      setColonias([
-        "Centro",
-        "Revolución",
-        "Periodistas",
-        "Electricistas",
-        "Venta Prieta"
-      ]);
+      // Obtener colonias por código postal
+      const coloniasEncontradas = getColoniasByCP(cp);
+      setColonias(coloniasEncontradas);
+      
+      // Auto-seleccionar municipio basado en el código postal
+      const municipioId = getMunicipioByCP(cp);
+      setAddressData(prev => ({ 
+        ...prev, 
+        municipioId,
+        coloniaId: "" // Reset colonia cuando cambia el CP
+      }));
     } else {
       setColonias([]);
-      setAddressData(prev => ({ ...prev, colonia: "" }));
+      setAddressData(prev => ({ 
+        ...prev, 
+        coloniaId: "",
+        municipioId: ""
+      }));
     }
   };
 
   const validateData = (): boolean => {
     const errors: ValidationErrors = {};
     let isValid = true;
+
+    if (!addressData.alias.trim()) {
+      errors.alias = "El alias de la dirección es requerido";
+      isValid = false;
+    }
 
     if (!addressData.calle.trim()) {
       errors.calle = "La calle es requerida";
@@ -125,13 +115,13 @@ const AddressForm: React.FC<AddressFormProps> = ({
       isValid = false;
     }
 
-    if (!addressData.colonia) {
-      errors.colonia = "La colonia es requerida";
+    if (!addressData.coloniaId) {
+      errors.coloniaId = "La colonia es requerida";
       isValid = false;
     }
 
-    if (!addressData.municipio) {
-      errors.municipio = "El municipio es requerido";
+    if (!addressData.municipioId) {
+      errors.municipioId = "El municipio es requerido";
       isValid = false;
     }
 
@@ -148,12 +138,27 @@ const AddressForm: React.FC<AddressFormProps> = ({
   };
 
   const isShippingAddress = tipoDireccion === 1;
-  // const titleText = isShippingAddress ? "Datos de Envío" : "Dirección Fiscal";
   const buttonText = isShippingAddress ? "Guardar Datos de Envío" : "Guardar Dirección Fiscal";
 
   return (
     <div className="mt-4">
-      {/* <h5 className="text-white profile-section-title">{titleText}</h5> */}
+      <Form.Group className="mb-3" controlId={`formAlias${tipoDireccion}`}>
+        <Form.Label>Alias de Dirección *</Form.Label>
+        <Form.Control
+          type="text"
+          placeholder="Ej: Casa, Oficina, Casa de mamá..."
+          value={addressData.alias}
+          onChange={handleInputChange}
+          name="alias"
+          isInvalid={!!validationErrors.alias}
+        />
+        <Form.Control.Feedback type="invalid">
+          {validationErrors.alias}
+        </Form.Control.Feedback>
+        <Form.Text className="text-light profile-form-text">
+          Agrega un nombre para identificar fácilmente esta dirección
+        </Form.Text>
+      </Form.Group>
 
       <Form.Group className="mb-3" controlId={`formCalle${tipoDireccion}`}>
         <Form.Label>Calle *</Form.Label>
@@ -225,25 +230,25 @@ const AddressForm: React.FC<AddressFormProps> = ({
           <Form.Group className="mb-3" controlId={`formColonia${tipoDireccion}`}>
             <Form.Label>Colonia *</Form.Label>
             <Form.Select
-              value={addressData.colonia}
+              value={addressData.coloniaId}
               onChange={handleInputChange}
-              name="colonia"
+              name="coloniaId"
               disabled={colonias.length === 0}
-              isInvalid={!!validationErrors.colonia}
+              isInvalid={!!validationErrors.coloniaId}
             >
               <option value="">Selecciona una colonia</option>
-              {colonias.map((colonia, index) => (
-                <option key={index} value={colonia}>
-                  {colonia}
+              {colonias.map((colonia) => (
+                <option key={colonia.id} value={colonia.id}>
+                  {colonia.descripcion}
                 </option>
               ))}
             </Form.Select>
             <Form.Control.Feedback type="invalid">
-              {validationErrors.colonia}
+              {validationErrors.coloniaId}
             </Form.Control.Feedback>
             {addressData.codigoPostal.length === 5 && colonias.length === 0 && (
               <Form.Text className="text-light profile-form-text">
-                Buscando colonias...
+                No se encontraron colonias para este código postal
               </Form.Text>
             )}
           </Form.Group>
@@ -253,20 +258,20 @@ const AddressForm: React.FC<AddressFormProps> = ({
       <Form.Group className="mb-3" controlId={`formMunicipio${tipoDireccion}`}>
         <Form.Label>Municipio *</Form.Label>
         <Form.Select
-          value={addressData.municipio}
+          value={addressData.municipioId}
           onChange={handleInputChange}
-          name="municipio"
-          isInvalid={!!validationErrors.municipio}
+          name="municipioId"
+          isInvalid={!!validationErrors.municipioId}
         >
           <option value="">Selecciona un municipio</option>
-          {municipios.map((municipio, index) => (
-            <option key={index} value={municipio}>
-              {municipio}
+          {municipios.map((municipio) => (
+            <option key={municipio.id} value={municipio.id}>
+              {municipio.descripcion}
             </option>
           ))}
         </Form.Select>
         <Form.Control.Feedback type="invalid">
-          {validationErrors.municipio}
+          {validationErrors.municipioId}
         </Form.Control.Feedback>
       </Form.Group>
 

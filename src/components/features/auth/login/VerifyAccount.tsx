@@ -1,29 +1,26 @@
 import React, { useState, useRef, type ChangeEvent, type KeyboardEvent } from "react";
-import { Form, Button, Container, Row, Col } from "react-bootstrap";
+import { Form, Button, Container, Row, Col, Spinner } from "react-bootstrap";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import ToastNotification from "../../../common/ToastNotification";
 import type { IVerifyAccount } from "../../../../interfaces/login";
 import usePostGenericHook from "../../../../hooks/accessData/usePostGenericHook";
 import type { IRespuesta } from "../../../../interfaces/Respuesta";
-
+import type { Email } from "../../../../interfaces/correo";
 
 const VerifyAccount: React.FC = () => {
   const [code, setCode] = useState<string[]>(["", "", "", "", "", ""]);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
-  // const [setDataVerify] = useState<IVerifyAccount>({
-  //     codigo: '',
-  //     usuario: '',
-  //     uKey : '',
-  // })
-  const {postData, isLoading}= usePostGenericHook<IVerifyAccount, IRespuesta>("usuarios/ConfirmarCorreo");
-  const [params]   = useSearchParams();
+  
+  const { postData, isLoading } = usePostGenericHook<IVerifyAccount, IRespuesta>("usuarios/ConfirmarCorreo");
+  const { postData: postDataResend, isLoading: isLoadingResend } = usePostGenericHook<Email, IRespuesta>("usuarios/reenvioCodigo");
+  const [params] = useSearchParams();
   const [respuesta, setRespuesta] = useState<IRespuesta>({
-    exito:false,
-    mensaje:'',
-    error:'',
-    data:[]
-    });
+    exito: false,
+    mensaje: '',
+    error: '',
+    data: []
+  });
   
   // Referencias para los inputs
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -80,67 +77,75 @@ const VerifyAccount: React.FC = () => {
     inputRefs.current[focusIndex]?.focus();
   };
 
-
   const handleVerifyAccount = async () => {
-
-    //unimos los digitoscapturados por el usuario
+    // Unimos los dígitos capturados por el usuario
     const verificationCode = code.join("");
     
     if (verificationCode.length !== 6) {
       setRespuesta({
-        exito:false,
-        mensaje:'',
-        error:'Capture los 6 dígitos enviados a su correo',
-        data:[]
-      })
-
+        exito: false,
+        mensaje: '',
+        error: 'Capture los 6 dígitos enviados a su correo',
+        data: []
+      });
+      setShowSuccessToast(true);
       return;
     }
 
     try {
-
-      const _data : IVerifyAccount = {
+      const _data: IVerifyAccount = {
         codigo: verificationCode,
         usuario: params.get('user')?.toString()!,
-        uKey : params.get('token')?.toString()!,
-      }
+        uKey: params.get('token')?.toString()!,
+      };
       
-      var response = await postData(_data!);
-
+      const response = await postData(_data!);
       
       if (response) {
-
-        setRespuesta(response)
+        setRespuesta(response);
         setShowSuccessToast(true);
 
-        if(response.exito){
-            setTimeout(() => {
+        if (response.exito) {
+          setTimeout(() => {
             navigate("/login");
           }, 3000);
         }
-        
-        
       } 
     } catch (error) {
       console.error("Error al verificar cuenta:", error);
       setRespuesta({
-        exito:false,
-        mensaje:'',
-        error:'Error al verificar cuenta: '+ error,
-        data:[]
-      })
-      
+        exito: false,
+        mensaje: '',
+        error: 'Error al verificar cuenta: ' + error,
+        data: []
+      });
+      setShowSuccessToast(true);
     } 
   };
 
   const handleResendCode = async () => {
     try {
-      
       console.log("Reenviando código...");
 
-      setShowSuccessToast(true);
+      const email: Email = {
+        parametro: params.get('email')?.toString()!
+      };
+
+      const responseResend = await postDataResend(email);
+
+      if (responseResend) {
+        setRespuesta(responseResend);
+        setShowSuccessToast(true);
+      } 
     } catch (error) {
       console.error("Error al reenviar código:", error);
+      setRespuesta({
+        exito: false,
+        mensaje: '',
+        error: 'Error al reenviar código',
+        data: []
+      });
+      setShowSuccessToast(true);
     }
   };
 
@@ -149,14 +154,12 @@ const VerifyAccount: React.FC = () => {
       <ToastNotification
         show={showSuccessToast}
         onClose={() => setShowSuccessToast(false)}
-        // message={respuesta.exito ? respuesta.mensaje : respuesta.error}
-        message={respuesta.exito ? "Cuenta verificada correctamente! Redirigiendo..." : "Hubo un problema al verificar la cuenta" }
+        message={respuesta.exito ? respuesta.mensaje : (respuesta.error || "Hubo un problema al verificar la cuenta")}
         header="Notificación!"
-        bg={respuesta.exito ? "success":"danger"}
+        bg={respuesta.exito ? "success" : "danger"}
         delay={4000}
         position="top-end"
       />
-
 
       <div className="hub-login-back" style={{ top: "16px" }}>
         <Link to={"/login"} className="text-light">
@@ -208,16 +211,11 @@ const VerifyAccount: React.FC = () => {
                       handleKeyDown(index, e)
                     }
                     onPaste={handlePaste}
+                    disabled={isLoading || isLoadingResend}
                     style={{
                       width: "50px",
                       height: "60px",
-                      // fontSize: "24px",
                       fontWeight: "bold",
-                      // textAlign: "center",
-                      // textTransform: "uppercase",
-                      // backgroundColor: "#2a2a2a",
-                      // color: "#ffffff !important",
-                      // border: "2px solid #444"
                     }}
                     className="text-center"
                   />
@@ -228,16 +226,19 @@ const VerifyAccount: React.FC = () => {
             <Button
               type="submit"
               className="w-100 hub-btn-gamer mb-3"
-              disabled={isLoading || code.some(c => !c)}
+              disabled={isLoading || isLoadingResend || code.some(c => !c)}
               onClick={handleVerifyAccount}
             >
               {isLoading ? (
                 <>
-                  <span
-                    className="spinner-grow spinner-grow-sm me-2"
+                  <Spinner
+                    as="span"
+                    animation="border"
+                    size="sm"
                     role="status"
                     aria-hidden="true"
-                  ></span>
+                    className="me-2"
+                  />
                   Verificando...
                 </>
               ) : (
@@ -251,16 +252,36 @@ const VerifyAccount: React.FC = () => {
               </p>
               <Button
                 variant="link"
-                className="text-light p-0"
+                className="text-light p-0 d-inline-flex align-items-center"
                 style={{ 
                   fontSize: "14px",
-                  textDecoration: "underline",
-                  opacity: 0.8
+                  textDecoration: isLoadingResend ? "none" : "underline",
+                  opacity: isLoadingResend ? 0.6 : 0.8,
+                  cursor: isLoadingResend ? "not-allowed" : "pointer"
                 }}
                 onClick={handleResendCode}
-                disabled={isLoading}
+                disabled={isLoading || isLoadingResend}
               >
-                Reenviar código
+                {isLoadingResend ? (
+                  <>
+                    <Spinner
+                      as="span"
+                      animation="border"
+                      size="sm"
+                      role="status"
+                      aria-hidden="true"
+                      className="me-2"
+                      style={{
+                        width: "14px",
+                        height: "14px",
+                        borderWidth: "2px"
+                      }}
+                    />
+                    Reenviando código...
+                  </>
+                ) : (
+                  "Reenviar código"
+                )}
               </Button>
             </div>
           </Col>

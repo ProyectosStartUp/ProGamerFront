@@ -4,3 +4,8 @@ export interface ICorreos{
     asunto: string;
     cuerpo : string;
 }
+
+
+export interface Email {
+  parametro:string
+}

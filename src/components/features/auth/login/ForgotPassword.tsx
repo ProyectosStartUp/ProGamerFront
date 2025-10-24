@@ -5,9 +5,12 @@ import ToastNotification from "../../../common/ToastNotification";
 import usePostGenericHook from "../../../../hooks/accessData/usePostGenericHook";
 import type { IVerifyAccount } from "../../../../interfaces/login";
 import type { IRespuesta } from "../../../../interfaces/Respuesta";
+import type { Email } from "../../../../interfaces/correo";
+
+
 
 const ForgotPassword: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [mail, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastData, setToastData] = useState({
@@ -15,7 +18,7 @@ const ForgotPassword: React.FC = () => {
     isSuccess: false
   });
   const [emailError, setEmailError] = useState("");
-  const {postData,}= usePostGenericHook<string, IRespuesta>("usuarios/recuperaPassword");
+  const {postData,}= usePostGenericHook<Email, IRespuesta>("usuarios/recoveryPassword");
   
 
   const navigate = useNavigate();
@@ -48,15 +51,15 @@ const ForgotPassword: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateEmail(email)) {
+    if (!validateEmail(mail)) {
       return;
     }
 
     setIsLoading(true);
 
     try {
-
-      var response = await postData(email);
+      const _data: Email ={ parametro: mail}
+      var response = await postData(_data);
       if (response) {
         showToastMessage(
           "Se ha enviado un correo con instrucciones para recuperar tu contraseña",
@@ -131,7 +134,7 @@ const ForgotPassword: React.FC = () => {
               <Form.Control
                 type="email"
                 placeholder="ejemplo@correo.com"
-                value={email}
+                value={mail}
                 onChange={handleEmailChange}
                 isInvalid={!!emailError}
                 style={{

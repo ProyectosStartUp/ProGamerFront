@@ -3,6 +3,9 @@ import { Form, Button, Container, Row, Col } from "react-bootstrap";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeSlash } from "react-bootstrap-icons";
 import ToastNotification from "../../../common/ToastNotification";
+import type { IRespuesta } from "../../../../interfaces/Respuesta";
+import type { IRecoveryPass } from "../../../../interfaces/usuarios";
+import usePostGenericHook from "../../../../hooks/accessData/usePostGenericHook";
 
 interface ValidationErrors {
   contrasenia?: string;
@@ -23,10 +26,12 @@ const ResetPassword: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
+
   const [toastData, setToastData] = useState({
     message: '',
     isSuccess: false
   });
+  const {postData,}= usePostGenericHook<IRecoveryPass, IRespuesta>("usuarios/recoveryPassword");
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -105,7 +110,14 @@ const ResetPassword: React.FC = () => {
       // TODO: Llamar al API para restablecer contraseña
       console.log("Restableciendo contraseña para:", nombreUsuario);
 
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const _recovery: IRecoveryPass = {
+        usuario: params.get('token')?.toString()!,
+        pass:  contrasenia
+      }
+
+      // await new Promise(resolve => setTimeout(resolve, 2000));
+
+      var response = await postData(_recovery);
 
       showToastMessage("Contraseña restablecida exitosamente", true);
 
@@ -162,7 +174,7 @@ const ResetPassword: React.FC = () => {
               Restablecer Contraseña
             </h2>
 
-            <Form.Group className="mb-3" controlId="formNombreUsuario">
+            {/* <Form.Group className="mb-3" controlId="formNombreUsuario">
               <Form.Label>Nombre de Usuario</Form.Label>
               <Form.Control
                 type="text"
@@ -174,8 +186,8 @@ const ResetPassword: React.FC = () => {
                   border: "1px solid #444"
                 }}
               />
-            </Form.Group>
-
+            </Form.Group> */}
+{/* 
             <Form.Group className="mb-3" controlId="formEmail">
               <Form.Label>Correo Electrónico</Form.Label>
               <Form.Control
@@ -188,7 +200,7 @@ const ResetPassword: React.FC = () => {
                   border: "1px solid #444"
                 }}
               />
-            </Form.Group>
+            </Form.Group> */}
 
             <hr className="my-4" style={{ borderColor: "#444" }} />
 
@@ -295,3 +307,4 @@ const ResetPassword: React.FC = () => {
 };
 
 export default ResetPassword;
+

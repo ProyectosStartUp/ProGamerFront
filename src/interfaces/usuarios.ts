@@ -29,3 +29,8 @@ export interface IUserRS {
   picture: string;
   sub: string; 
 }
+
+export interface IRecoveryPass {
+  usuario: string;
+  pass: string;
+}

@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { Form, Button, Container, Row, Col, Alert } from "react-bootstrap";
+import React, { useState, useRef, useEffect } from "react";
+import { Form, Button, Container, Row, Col, Alert, Spinner } from "react-bootstrap";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeSlash } from "react-bootstrap-icons";
 import ReCAPTCHA from "react-google-recaptcha";
@@ -12,14 +12,26 @@ import type { IRespuesta } from "../../../../interfaces/Respuesta";
 import type { IUsuarioRespuesta } from "../../../../interfaces/usuarios";
 import ToastNotification from "../../../common/ToastNotification";
 
-var url = "usuarios/";
+const REMEMBER_ME_KEY = "hub_remember_credentials";
+const url = "usuarios/";
+
+interface RememberedCredentials {
+  usuario: string;
+  rememberMe: boolean;
+}
 
 const Login = () => {
-  const [session, setSession] = useState<ILogin>();
+  const [session, setSession] = useState<ILogin>({
+    usuario: "",
+    pass: "",
+    captchaToken: ""
+  });
+  const [rememberMe, setRememberMe] = useState<boolean>(false);
   const { postData, isLoading, error } = useGenericHook<
     ILogin,
     IRespuesta<IUsuarioRespuesta>
   >(url + "login");
+ 
   const { setAuth } = useAuthStore();
 
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -34,9 +46,25 @@ const Login = () => {
   });
 
   const captchaRef = useRef<ReCAPTCHA>(null);
-
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Cargar credenciales guardadas al montar el componente
+  useEffect(() => {
+    const savedCredentials = localStorage.getItem(REMEMBER_ME_KEY);
+    if (savedCredentials) {
+      try {
+        const parsed: RememberedCredentials = JSON.parse(savedCredentials);
+        setSession(prev => ({
+          ...prev,
+          usuario: parsed.usuario
+        }));
+        setRememberMe(parsed.rememberMe);
+      } catch (error) {
+        console.error("Error al cargar credenciales guardadas:", error);
+      }
+    }
+  }, []);
 
   const handleCaptchaChange = (token: string | null) => {
     setCaptchaToken(token);
@@ -78,26 +106,32 @@ const Login = () => {
         };
         user = Array.isArray(response.data) ? response.data[0] : response.data;
 
+        // Guardar o eliminar credenciales según el checkbox
+        if (rememberMe) {
+          const credentialsToSave: RememberedCredentials = {
+            usuario: session.usuario,
+            rememberMe: true
+          };
+          localStorage.setItem(REMEMBER_ME_KEY, JSON.stringify(credentialsToSave));
+        } else {
+          localStorage.removeItem(REMEMBER_ME_KEY);
+        }
+
         setAuth(user.mail, user.nombreUsuario, user.verificar2FA);
         localStorage.setItem("token", user.token);
 
         if (user.verificar2FA) {
-          setTimeout(() => navigate("/verify2fa"), 3000);
+          setTimeout(() => navigate("/verify2fa"), 2000);
         } else {
           const redirectTo = (location.state as any)?.from?.pathname || "/";
-          setTimeout(() => navigate(redirectTo), 3000);
+          setTimeout(() => navigate(redirectTo), 2000);
         }
       } else {
-        "error: " + error;
         captchaRef.current?.reset();
         setCaptchaToken(null);
       }
     } catch (err: any) {
-      if (err.response) {
-        if (err.response.status === 401) {
-          error;
-        }
-      }
+      console.error("Error en login:", err);
       captchaRef.current?.reset();
       setCaptchaToken(null);
     }
@@ -106,9 +140,13 @@ const Login = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setSession({
-      ...session!,
+      ...session,
       [name]: value,
     });
+  };
+
+  const handleRememberMeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRememberMe(e.target.checked);
   };
 
   return (
@@ -119,15 +157,16 @@ const Login = () => {
             <i className="bi bi-arrow-left me-1 float-start"></i>Regresar
           </Link>
         </div>
+        
         <ToastNotification
           show={showSuccessToast}
           onClose={() => setShowSuccessToast(false)}
           message={
             respuesta.exito
-              ? "Acceso exitoso! Redirigiendo... "
+              ? "¡Acceso exitoso! Redirigiendo..."
               : respuesta.error
           }
-          header="Notificación!"
+          header="Notificación"
           bg={respuesta.exito ? "success" : "danger"}
           delay={4000}
           position="top-end"
@@ -135,15 +174,19 @@ const Login = () => {
 
         <Container className="mt-5 mb-4">
           <Row className="justify-content-md-center">
-            <Col md={4}>
-              <h2 className="mb-2 text-left text-white">Bienvenido de nuevo</h2>
-              <p className="mb-2 text-left text-white">
-                Ingresa ahora a tu cuenta
-              </p>
+            <Col md={5} lg={4}>
+              {/* Header */}
+              <div className="mb-4">
+                <h2 className="mb-2 text-white fw-bold text-center">Bienvenido a ProGamer</h2>
+                {/* <p className="text-light mb-0" style={{ fontSize: "15px", opacity: 0.85 }}>
+                  Ingresa ahora a tu cuenta
+                </p> */}
+              </div>
 
               <Form onSubmit={handleSubmit}>
+                {/* Campo Usuario */}
                 <Form.Group className="mb-3" controlId="formIdentifier">
-                  <Form.Label>Gamertag o Email</Form.Label>
+                  <Form.Label className="fw-semibold">Gamertag o Email</Form.Label>
                   <Form.Control
                     name="usuario"
                     type="text"
@@ -151,64 +194,97 @@ const Login = () => {
                     value={session?.usuario}
                     onChange={handleInputChange}
                     required
+                    style={{
+                      padding: "12px 16px",
+                      fontSize: "15px",
+                      backgroundColor: "#2d3748",
+                      border: "1px solid #4a5568",
+                      color: "#fff",
+                      borderRadius: "6px"
+                    }}
+                    className="login-input"
                   />
                 </Form.Group>
 
+                {/* Campo Contraseña */}
                 <Form.Group className="mb-3" controlId="formPassword">
-                  <Form.Label>Contraseña</Form.Label>
+                  <Form.Label className="fw-semibold">Contraseña</Form.Label>
                   <div className="position-relative">
                     <Form.Control
                       name="pass"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Contraseña"
+                      placeholder="Ingresa tu contraseña"
                       value={session?.pass}
                       onChange={handleInputChange}
                       required
+                      style={{
+                        padding: "12px 48px 12px 16px",
+                        fontSize: "15px",
+                        backgroundColor: "#2d3748",
+                        border: "1px solid #4a5568",
+                        color: "#fff",
+                        borderRadius: "6px"
+                      }}
+                      className="login-input"
                     />
                     <Button
                       type="button"
                       variant="link"
-                      style={{
-                        right: "10px",
-                        bottom: "0px",
-                        fontSize: "24px",
-                        color: "#969696ff",
-                      }}
                       className="position-absolute p-0 border-0 bg-transparent"
+                      style={{
+                        right: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "#9ca3af",
+                        zIndex: 5
+                      }}
                       onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
                     >
                       {showPassword ? (
-                        <EyeSlash style={{ height: "46px" }} />
+                        <EyeSlash size={20} />
                       ) : (
-                        <Eye style={{ height: "46px" }} />
+                        <Eye size={20} />
                       )}
                     </Button>
                   </div>
                 </Form.Group>
 
-                <div className="row mb-3">
-                  <div className="col-5">
-                    <Form.Check
-                      type="checkbox"
-                      id="checkRemember"
-                      label="Recordarme"
-                      className="custom-form-check"
-                    />
-                  </div>
-                  <div className="col-7 text-end">
-                    <Link to={"/ForgotPassword"} className="text-light">
-                      ¿Olvidaste tu contraseña?
-                    </Link>
-                  </div>
+                {/* Recordarme y Olvidaste contraseña */}
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <Form.Check
+                    type="checkbox"
+                    id="checkRemember"
+                    label="Recordarme"
+                    checked={rememberMe}
+                    onChange={handleRememberMeChange}
+                    style={{
+                      fontSize: "14px"
+                    }}
+                    className="custom-form-check"
+                  />
+                  <Link 
+                    to={"/ForgotPassword"} 
+                    className="text-light"
+                    style={{
+                      fontSize: "14px",
+                      textDecoration: "none",
+                      opacity: 0.85
+                    }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
                 </div>
 
                 {/* reCAPTCHA Component */}
                 <div className="mb-3 d-flex justify-content-center">
                   <div
                     style={{
-                      border: captchaError ? "1px solid #ff0000" : "none",
-                      padding: captchaError ? "4px" : "0",
-                      borderRadius: "4px",
+                      padding: "8px",
+                      backgroundColor: captchaError ? "rgba(239, 68, 68, 0.1)" : "#2d3748",
+                      border: captchaError ? "1px solid #ef4444" : "1px solid #4a5568",
+                      borderRadius: "6px",
+                      transition: "all 0.3s ease"
                     }}
                   >
                     <ReCAPTCHA
@@ -228,34 +304,50 @@ const Login = () => {
                   </div>
                 </div>
 
+                {/* Error de Captcha */}
                 {captchaError && (
                   <Alert
-                    className="px-2 py-1 mb-3"
+                    className="mb-3 d-flex align-items-center"
                     style={{
-                      backgroundColor: "transparent",
-                      color: "#ff0000",
+                      backgroundColor: "rgba(239, 68, 68, 0.1)",
+                      color: "#ef4444",
                       fontSize: "13px",
-                      border: "1px solid #ff0000",
-                      borderRadius: "0px",
-                      textAlign: "center",
+                      border: "1px solid #ef4444",
+                      borderRadius: "6px",
+                      padding: "10px 12px"
                     }}
                   >
+                    <i className="bi bi-exclamation-circle me-2"></i>
                     {captchaError}
                   </Alert>
                 )}
 
+                {/* Botón de Ingresar */}
                 <Button
                   type="submit"
-                  className="w-100 hub-btn-gamer mb-3"
+                  className="w-100 hub-btn-gamer mb-4"
                   disabled={isLoading}
+                  style={{
+                    padding: "1px",
+                    fontSize: "16px",
+                    fontWeight: "600"
+                  }}
                 >
                   {isLoading ? (
                     <>
-                      <span
-                        className="spinner-grow spinner-grow-sm me-2"
+                      <Spinner
+                        as="span"
+                        animation="border"
+                        size="sm"
                         role="status"
                         aria-hidden="true"
-                      ></span>
+                        className="me-2"
+                        style={{
+                          width: "18px",
+                          height: "18px",
+                          borderWidth: "2px"
+                        }}
+                      />
                       Verificando acceso...
                     </>
                   ) : (
@@ -263,16 +355,75 @@ const Login = () => {
                   )}
                 </Button>
 
-                <div className="o-linea mt-4 mb-4">
-                  <span>o</span>
+                {/* Divisor */}
+                <div className="d-flex align-items-center mb-4">
+                  <hr className="flex-grow-1" style={{ borderColor: "#4a5568", opacity: 0.5 }} />
+                  <span className="px-3 text-muted" style={{ fontSize: "14px" }}>
+                    O continúa con
+                  </span>
+                  <hr className="flex-grow-1" style={{ borderColor: "#4a5568", opacity: 0.5 }} />
                 </div>
 
+                {/* Login Providers */}
                 <LoginProviders />
+
+                {/* Link a Registro */}
+                <div className="text-center mt-4">
+                  <p className="text-light mb-0" style={{ fontSize: "14px" }}>
+                    ¿No tienes una cuenta?{" "}
+                    <Link 
+                      to={"/register"} 
+                      className="text-white fw-semibold"
+                      style={{ textDecoration: "none" }}
+                    >
+                      Regístrate aquí
+                    </Link>
+                  </p>
+                </div>
               </Form>
             </Col>
           </Row>
         </Container>
       </div>
+
+      {/* Estilos adicionales */}
+      <style>{`
+        .login-input:focus {
+          background-color: #2d3748 !important;
+          border-color: #667eea !important;
+          color: #fff !important;
+          box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+        }
+
+        .login-input::placeholder {
+          color: #9ca3af;
+          opacity: 1;
+        }
+
+        .custom-form-check {
+          color: #e5e7eb;
+        }
+
+        .custom-form-check .form-check-input {
+          background-color: #2d3748;
+          border-color: #4a5568;
+          cursor: pointer;
+        }
+
+        .custom-form-check .form-check-input:checked {
+          background-color: #667eea;
+          border-color: #667eea;
+        }
+
+        .custom-form-check .form-check-input:focus {
+          box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .custom-form-check .form-check-label {
+          cursor: pointer;
+          user-select: none;
+        }
+      `}</style>
     </>
   );
 };

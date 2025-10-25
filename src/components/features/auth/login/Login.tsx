@@ -213,6 +213,7 @@ const Login = () => {
                   >
                     <ReCAPTCHA
                       ref={captchaRef}
+                      className="hub-re-captcha"
                       sitekey="6Lf58-UrAAAAANnjeLhjtkfN8Y507dh-oznE89fj"
                       onChange={handleCaptchaChange}
                       theme="dark"

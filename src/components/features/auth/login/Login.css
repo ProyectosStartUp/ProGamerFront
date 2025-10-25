@@ -76,3 +76,17 @@ input:-webkit-autofill,
         -webkit-box-shadow: 0 0 0px 1000px #212529 inset !important; /* Overrides background */
         -webkit-text-fill-color: white !important; /* Changes text color */
     }
+
+.hub-re-captcha {
+    border:2px solid #212529;
+    overflow: hidden;
+    width: 302px;
+    background-color: #212529;
+    border-radius: 2px;
+}
+
+.hub-re-captcha iframe {
+    margin-top: -3px;
+    margin-left: -4px;
+    border:2px solid #212529;
+}

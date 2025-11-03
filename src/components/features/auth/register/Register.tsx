@@ -27,7 +27,7 @@ const Register: React.FC = () => {
     contrasenia: "",
     confirmacionContrasenia: "",
     gamerTag: "",
-    esRedSocial:true
+    esRedSocial:false
   });
   
   const { postData, isLoading } = usePostGenericHook<IRegistroUsuario, IRespuesta>( "usuarios/agregar");
@@ -154,9 +154,8 @@ const Register: React.FC = () => {
 		  
 		  if(response.exito){
 			  setTimeout(() => {
-				navigate("/");
-			  }, 4000);
-
+				navigate("/VerifyAccount?token=" + response.data.uKey);
+			  }, 2000);
 		  }
  
 

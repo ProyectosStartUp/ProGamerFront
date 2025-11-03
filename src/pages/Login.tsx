@@ -5,7 +5,7 @@ import { Eye, EyeSlash } from "react-bootstrap-icons";
 //import axios from "axios";
 import "./Login.css";
 import type { ILogin } from "../interfaces/login";
-import useGenericHook from "../hooks/usePostGenericHook";
+import useGenericHook from "../hooks/accessData/usePostGenericHook";
 import type { IUsuarios } from "../interfaces/usuarios";
 //import useGetGenericHook from "../hooks/useGetGenericHook";
 

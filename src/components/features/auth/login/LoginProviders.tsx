@@ -70,7 +70,6 @@ const LoginProviders = () => {
 
         /* Hover effect para el contenedor */
         .social-buttons-container > *:hover {
-          transform: translateY(-2px);
           transition: transform 0.2s ease;
         }
       `}</style>

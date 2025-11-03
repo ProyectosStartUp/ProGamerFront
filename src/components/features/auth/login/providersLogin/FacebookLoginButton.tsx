@@ -194,7 +194,7 @@ const FacebookLoginButton: React.FC<FacebookLoginButtonProps> = ({
           disabled={isLoading}
           className="w-100 facebook-login-btn"
           style={{
-            backgroundColor: isLoading ? '#166FE5' : '#1877F2',
+            backgroundColor: isLoading ? 'rgb(0, 43, 115)' : 'rgb(0, 43, 115)',
             color: '#fff',
             border: 'none',
             padding: '12px',
@@ -210,13 +210,13 @@ const FacebookLoginButton: React.FC<FacebookLoginButtonProps> = ({
           }}
           onMouseEnter={(e) => {
             if (!isLoading) {
-              e.currentTarget.style.backgroundColor = '#166FE5';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(24, 119, 242, 0.3)';
+              e.currentTarget.style.backgroundColor = 'rgba(0, 43, 115, 0.8)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 43, 115, 0.3)';
             }
           }}
           onMouseLeave={(e) => {
             if (!isLoading) {
-              e.currentTarget.style.backgroundColor = '#1877F2';
+              e.currentTarget.style.backgroundColor = 'rgb(0, 43, 115)';
               e.currentTarget.style.boxShadow = 'none';
             }
           }}
@@ -278,7 +278,7 @@ const FacebookLoginButton: React.FC<FacebookLoginButtonProps> = ({
           width: '48px',
           height: '48px',
           padding: '0',
-          backgroundColor: isLoading ? '#166FE5' : '#1877F2',
+          backgroundColor: isLoading ? 'rgb(0, 43, 115)' : 'rgb(0, 43, 115)',
           border: 'none',
           borderRadius: '4px',
           transition: 'all 0.3s ease',
@@ -287,13 +287,13 @@ const FacebookLoginButton: React.FC<FacebookLoginButtonProps> = ({
         }}
         onMouseEnter={(e) => {
           if (!isLoading) {
-            e.currentTarget.style.backgroundColor = '#166FE5';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(24, 119, 242, 0.3)';
+            e.currentTarget.style.backgroundColor = 'rgba(0, 43, 115, 0.8)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 43, 115, 0.3)';
           }
         }}
         onMouseLeave={(e) => {
           if (!isLoading) {
-            e.currentTarget.style.backgroundColor = '#1877F2';
+            e.currentTarget.style.backgroundColor = 'rgb(0, 43, 115)';
             e.currentTarget.style.boxShadow = 'none';
           }
         }}

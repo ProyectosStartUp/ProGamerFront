@@ -1,5 +1,5 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Play', system-ui, Avenir, Helvetica, Arial, sans-serif !important;
   line-height: 1.5;
   font-weight: 400;
 
@@ -67,7 +67,7 @@ button:focus-visible {
   font-weight: 400;
   font-family: inherit;
   width: 100%;
-  background-color: #212529;
+  background-color: #222222;
   color: #ffffff;
   height: 46px;
 }
@@ -121,7 +121,7 @@ button:focus-visible {
   border-color: #696969;
   cursor: pointer;
   margin: 0px 8px 0px 0px;
-  background-color: #212529;
+  background-color: #222222;
 }
 
 .custom-form-check .form-check-input:checked {

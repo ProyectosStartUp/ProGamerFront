@@ -31,7 +31,7 @@ const ResetPassword: React.FC = () => {
     message: '',
     isSuccess: false
   });
-  const {postData,}= usePostGenericHook<IRecoveryPass, IRespuesta>("usuarios/recoveryPassword");
+  const {postData,}= usePostGenericHook<IRecoveryPass, IRespuesta>("usuarios/recuperarPassword");
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -107,19 +107,14 @@ const ResetPassword: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // TODO: Llamar al API para restablecer contraseña
-      console.log("Restableciendo contraseña para:", nombreUsuario);
-
       const _recovery: IRecoveryPass = {
         usuario: params.get('token')?.toString()!,
         pass:  contrasenia
       }
 
-      // await new Promise(resolve => setTimeout(resolve, 2000));
-
       var response = await postData(_recovery);
 
-      showToastMessage("Contraseña restablecida exitosamente", true);
+      showToastMessage(response?.exito ? response?.mensaje! : response?.error!, response?.exito!);
 
       setTimeout(() => {
         navigate("/login");

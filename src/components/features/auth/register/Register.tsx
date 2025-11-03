@@ -27,7 +27,7 @@ const Register: React.FC = () => {
     contrasenia: "",
     confirmacionContrasenia: "",
     gamerTag: "",
-    esRedSocial:true
+    esRedSocial:false
   });
   
   const { postData, isLoading } = usePostGenericHook<IRegistroUsuario, IRespuesta>( "usuarios/agregar");

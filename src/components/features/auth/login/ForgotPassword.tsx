@@ -3,7 +3,7 @@ import { Form, Button, Container, Row, Col } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import ToastNotification from "../../../common/ToastNotification";
 import usePostGenericHook from "../../../../hooks/accessData/usePostGenericHook";
-import type { IVerifyAccount } from "../../../../interfaces/login";
+// import type { IVerifyAccount } from "../../../../interfaces/login";
 import type { IRespuesta } from "../../../../interfaces/Respuesta";
 import type { Email } from "../../../../interfaces/correo";
 

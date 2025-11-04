@@ -128,7 +128,7 @@ const VerifyAccount: React.FC = () => {
       console.log("Reenviando código...");
 
       const email: Email = {
-        parametro: params.get('email')?.toString()!
+        parametro: params.get('token')?.toString()!
       };
 
       const responseResend = await postDataResend(email);

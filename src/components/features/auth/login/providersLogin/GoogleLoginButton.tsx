@@ -150,7 +150,7 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ onSuccess, onErro
         disabled={isLoading}
         className="w-100 google-login-btn"
         style={{
-          backgroundColor: isLoading ? '#3c7ff6' : '#4285F4',
+          backgroundColor: isLoading ? 'rgb(0, 43, 115)' : 'rgb(0, 43, 115)',
           color: '#fff',
           border: 'none',
           padding: '12px',
@@ -166,13 +166,13 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ onSuccess, onErro
         }}
         onMouseEnter={(e) => {
           if (!isLoading) {
-            e.currentTarget.style.backgroundColor = '#3c7ff6';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(66, 133, 244, 0.3)';
+            e.currentTarget.style.backgroundColor = 'rgba(0, 43, 115, 0.8)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 43, 115, 0.3)';
           }
         }}
         onMouseLeave={(e) => {
           if (!isLoading) {
-            e.currentTarget.style.backgroundColor = '#4285F4';
+            e.currentTarget.style.backgroundColor = 'rgb(0, 43, 115)';
             e.currentTarget.style.boxShadow = 'none';
           }
         }}

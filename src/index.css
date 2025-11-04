@@ -1,5 +1,5 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Play', system-ui, Avenir, Helvetica, Arial, sans-serif !important;
   line-height: 1.5;
   font-weight: 400;
 
@@ -36,6 +36,52 @@ h1 {
   line-height: 1.1;
 }
 
+.text-success {
+  color: #00d647 !important;
+}
+
+.opacity-35 {
+  opacity: 0.35 !important;
+}
+
+.opacity-40 {
+  opacity: 0.40 !important;
+}
+
+#password-tooltip {
+  background-color: #222222 !important;
+  border-radius: 6px;
+  width: 234px;
+  text-align: left;
+  padding: 1px 1px;
+  margin-top: 16px;
+  margin-left: 8px;
+}
+
+#password-tooltip .tooltip-arrow::before {
+  border-right-color: #222222 !important;
+}
+
+#password-tooltip .tooltip-inner {
+  background-color: #222222 !important;
+  min-width: 232px;
+  padding: 8px 12px 4px 12px;
+}
+
+#password-tooltip ul {
+  padding-left: 0px;
+  margin: 8px 0;
+}
+#password-tooltip ul li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  color: #8b8b8b;
+}
+#password-tooltip ul li svg {
+  height: 20px;
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -60,22 +106,22 @@ button:focus-visible {
 }
 
 .form-control {
-  border-radius: 8px;
-  border: 0px solid #212529;
+  border-radius: 6px;
+  border: 1px solid #222222; /*#4a5568*/
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 400;
   font-family: inherit;
   width: 100%;
-  background-color: #212529;
+  background-color: #222222;
   color: #ffffff;
   height: 46px;
 }
-.form-control:focus {
-  border-color: #29a009;
-  box-shadow: 0 0 0 2px rgba(49, 231, 90, 0.60);
-  background-color: #212529;
-  color: #ffffff;
+.form-control:focus {  
+  background-color: #222222 !important;
+  border-color: #23b29e !important;
+  color: #fff !important;
+  box-shadow: none !important;
 }
 .form-control::placeholder {
   color: #6d6d6d;
@@ -121,7 +167,7 @@ button:focus-visible {
   border-color: #696969;
   cursor: pointer;
   margin: 0px 8px 0px 0px;
-  background-color: #212529;
+  background-color: #222222;
 }
 
 .custom-form-check .form-check-input:checked {
@@ -138,6 +184,9 @@ button:focus-visible {
   cursor: pointer;
 }
 
+.link-redirect:hover {
+  color: #147de2 !important;
+}
 
 @media (prefers-color-scheme: light) {
   :root {

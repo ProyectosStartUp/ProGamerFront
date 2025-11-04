@@ -32,7 +32,7 @@ const LoginProviders = () => {
           flex-direction: column;
           gap: 12px;
           width: 100%;
-          max-width: 400px;
+          max-width: 1200px;
           margin: 0 auto;
         }
 
@@ -70,7 +70,6 @@ const LoginProviders = () => {
 
         /* Hover effect para el contenedor */
         .social-buttons-container > *:hover {
-          transform: translateY(-2px);
           transition: transform 0.2s ease;
         }
       `}</style>

@@ -151,10 +151,11 @@ const Login = () => {
 
   return (
     <>
-      <div className="hub-login-container">
+      <div className="hub-login-container" style={{ overflow:'scroll', minHeight:'800px' }}>
+        
         <div className="hub-login-back">
           <Link to={"/"} className="text-light">
-            <i className="bi bi-arrow-left me-1 float-start"></i>Regresar
+            <i className="bi bi-arrow-left me-1 float-start"></i>Regresar al inicio
           </Link>
         </div>
         
@@ -173,20 +174,17 @@ const Login = () => {
         />
 
         <Container className="mt-5 mb-4">
-          <Row className="justify-content-md-center">
-            <Col md={5} lg={4}>
-              {/* Header */}
-              <div className="mb-4">
-                <h2 className="mb-2 text-white fw-bold text-center">Bienvenido a ProGamer</h2>
-                {/* <p className="text-light mb-0" style={{ fontSize: "15px", opacity: 0.85 }}>
-                  Ingresa ahora a tu cuenta
-                </p> */}
+          <Row className="justify-content-sm-center">
+            <Col sm={8} md={6} lg={5} xl={4} className="pb-4">
+              
+              <div className="mb-3">
+                <h3 className="text-white text-center pb-3">Bienvenido a Pro Gamer PC</h3>
               </div>
 
               <Form onSubmit={handleSubmit}>
                 {/* Campo Usuario */}
                 <Form.Group className="mb-3" controlId="formIdentifier">
-                  <Form.Label className="fw-semibold">Gamertag o Email</Form.Label>
+                  <Form.Label>Gamertag o Email</Form.Label>
                   <Form.Control
                     name="usuario"
                     type="text"
@@ -194,21 +192,14 @@ const Login = () => {
                     value={session?.usuario}
                     onChange={handleInputChange}
                     required
-                    style={{
-                      padding: "12px 16px",
-                      fontSize: "15px",
-                      backgroundColor: "#2d3748",
-                      border: "1px solid #4a5568",
-                      color: "#fff",
-                      borderRadius: "6px"
-                    }}
+                    
                     className="login-input"
                   />
                 </Form.Group>
 
                 {/* Campo Contraseña */}
                 <Form.Group className="mb-3" controlId="formPassword">
-                  <Form.Label className="fw-semibold">Contraseña</Form.Label>
+                  <Form.Label>Contraseña</Form.Label>
                   <div className="position-relative">
                     <Form.Control
                       name="pass"
@@ -220,8 +211,8 @@ const Login = () => {
                       style={{
                         padding: "12px 48px 12px 16px",
                         fontSize: "15px",
-                        backgroundColor: "#2d3748",
-                        border: "1px solid #4a5568",
+                        backgroundColor: "#222222",
+                        border: "1px solid #222222", /*#4a5568*/
                         color: "#fff",
                         borderRadius: "6px"
                       }}
@@ -261,7 +252,7 @@ const Login = () => {
                     style={{
                       fontSize: "14px"
                     }}
-                    className="custom-form-check"
+                    className="custom-form-check pt-0"
                   />
                   <Link 
                     to={"/ForgotPassword"} 
@@ -281,8 +272,8 @@ const Login = () => {
                   <div
                     style={{
                       padding: "8px",
-                      backgroundColor: captchaError ? "rgba(239, 68, 68, 0.1)" : "#2d3748",
-                      border: captchaError ? "1px solid #ef4444" : "1px solid #4a5568",
+                      backgroundColor: captchaError ? "rgba(239, 68, 68, 0)" : "#2d374800",
+                      border: captchaError ? "1px solid #ef4444" : "1px solid #4a556800",
                       borderRadius: "6px",
                       transition: "all 0.3s ease"
                     }}
@@ -290,6 +281,7 @@ const Login = () => {
                     <ReCAPTCHA
                       ref={captchaRef}
                       className="hub-re-captcha"
+                      style={{ minHeight:"82px"}}
                       sitekey="6Lf58-UrAAAAANnjeLhjtkfN8Y507dh-oznE89fj"
                       onChange={handleCaptchaChange}
                       theme="dark"
@@ -309,7 +301,7 @@ const Login = () => {
                   <Alert
                     className="mb-3 d-flex align-items-center"
                     style={{
-                      backgroundColor: "rgba(239, 68, 68, 0.1)",
+                      backgroundColor: "rgba(239, 68, 68, 0)",
                       color: "#ef4444",
                       fontSize: "13px",
                       border: "1px solid #ef4444",
@@ -330,7 +322,7 @@ const Login = () => {
                   style={{
                     padding: "1px",
                     fontSize: "16px",
-                    fontWeight: "600"
+                    fontWeight: "500"
                   }}
                 >
                   {isLoading ? (
@@ -357,8 +349,8 @@ const Login = () => {
 
                 {/* Divisor */}
                 <div className="d-flex align-items-center mb-4">
-                  <hr className="flex-grow-1" style={{ borderColor: "#4a5568", opacity: 0.5 }} />
-                  <span className="px-3 text-muted" style={{ fontSize: "14px" }}>
+                  <hr className="flex-grow-1" style={{ borderColor: "#8792a7ff", opacity: 0.5 }} />
+                  <span className="px-3" style={{ fontSize: "14px", color:"#8792a7ff" }}>
                     O continúa con
                   </span>
                   <hr className="flex-grow-1" style={{ borderColor: "#4a5568", opacity: 0.5 }} />
@@ -373,7 +365,7 @@ const Login = () => {
                     ¿No tienes una cuenta?{" "}
                     <Link 
                       to={"/register"} 
-                      className="text-white fw-semibold"
+                      className="text-white fw-semibold link-redirect"
                       style={{ textDecoration: "none" }}
                     >
                       Regístrate aquí
@@ -388,12 +380,7 @@ const Login = () => {
 
       {/* Estilos adicionales */}
       <style>{`
-        .login-input:focus {
-          background-color: #2d3748 !important;
-          border-color: #667eea !important;
-          color: #fff !important;
-          box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
-        }
+        
 
         .login-input::placeholder {
           color: #9ca3af;
@@ -402,17 +389,18 @@ const Login = () => {
 
         .custom-form-check {
           color: #e5e7eb;
+          margin: 2px 0 0 0;
         }
 
         .custom-form-check .form-check-input {
-          background-color: #2d3748;
+          background-color: #222222;
           border-color: #4a5568;
           cursor: pointer;
         }
 
         .custom-form-check .form-check-input:checked {
-          background-color: #667eea;
-          border-color: #667eea;
+          background-color: #23b29e;
+          border-color: #23b29e;
         }
 
         .custom-form-check .form-check-input:focus {

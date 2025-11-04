@@ -1,4 +1,3 @@
-
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import AppRoutes from "./routes/AppRoutes";
 
@@ -16,3 +15,24 @@ function App() {
 }
 
 export default App;
+
+
+/* 
+
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import AppRoutes from "./routes/AppRoutes";
+
+function App() {
+  const clientID = import.meta.env.VITE_CLIENTID_AUTH_GOOGLE
+  
+  return (
+    <GoogleOAuthProvider clientId={clientID} >
+      <AppRoutes/>
+
+    </GoogleOAuthProvider>
+  );
+}
+
+export default App;
+
+*/

@@ -32,7 +32,7 @@ const LoginProviders = () => {
           flex-direction: column;
           gap: 12px;
           width: 100%;
-          max-width: 400px;
+          max-width: 1200px;
           margin: 0 auto;
         }
 

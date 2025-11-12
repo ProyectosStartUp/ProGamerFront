@@ -3,8 +3,8 @@ import axi from '../../services/apiClient';
  
 
 
-interface IResultData {
-  data: any[];
+interface IResultData<T = any> {
+  data:  T | T[];
   isLoading: boolean;
   error: string | null;
   fetchData: () => Promise<void>

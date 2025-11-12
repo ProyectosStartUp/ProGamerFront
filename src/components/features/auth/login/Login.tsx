@@ -99,6 +99,7 @@ const Login = () => {
 
       if (response?.exito) {
         let user: IUsuarioRespuesta = {
+          id:"",
           mail: "",
           nombreUsuario: "",
           verificar2FA: false,
@@ -117,7 +118,7 @@ const Login = () => {
           localStorage.removeItem(REMEMBER_ME_KEY);
         }
 
-        setAuth(user.mail, user.nombreUsuario, user.verificar2FA);
+        setAuth(user.id, user.mail, user.nombreUsuario, user.verificar2FA);
         localStorage.setItem("token", user.token);
 
         if (user.verificar2FA) {

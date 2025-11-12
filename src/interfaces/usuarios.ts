@@ -15,6 +15,7 @@ export interface IUsuarios{
 }
 
 export interface IUsuarioRespuesta {
+    id:string,
     nombreUsuario : string;
     mail : string;
     verificar2FA : boolean;

@@ -1,27 +1,88 @@
-import React, { useState, useRef, type ChangeEvent } from "react";
-import { Form, Button, Container, Row, Col, Nav, OverlayTrigger, Tooltip } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import React, { useState, useRef, useEffect, type ChangeEvent } from "react";
+import { Form, Button, Container, Row, Col, Nav, OverlayTrigger, Tooltip, Spinner } from "react-bootstrap";
+import { Link, useNavigate } from "react-router-dom";
 import { PersonCircle, Camera } from "react-bootstrap-icons";
 
-import { useAuthStore } from "../../../../store/useAuthStore";
+import { useAuthData, useAuthActions } from "../../../../store/useAuthStore";
 import ToastNotification from "../../../common/ToastNotification";
 import ChangePasswordModal from "./ChangePasswordModal";
 import PersonalData from "./PersonalData";
 import ShippingData from "./ShippingData";
 import BillingData from "./BillingData";
+import useGetGenericHook from "../../../../hooks/accessData/useGetGenericHook";
+import type { IRespuesta } from "../../../../interfaces/Respuesta";
+import type { ICliente } from "../../../../interfaces/clientes";
 import "./styles/Profile.css";
 
 const Profile: React.FC = () => {
-  const { mail, nombreUsuario, verificar2FA, setVerificar2FA } = useAuthStore();
+  const navigate = useNavigate();
+  const { id, mail, nombreUsuario } = useAuthData();
+  const { isAuthenticated } = useAuthActions();
+  
+  // Validar autenticación al cargar el componente
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Hook genérico para obtener datos del perfil
+  const { data, isLoading, error } = useGetGenericHook (`Clientes/ObtenerPorUserId/${id}`);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<string>("personal");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [auth2FALocal, setAuth2FALocal] = useState<boolean>(false);
   
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showChangePass,setShowChangePass] = useState(true);
+  const [idCliente,setIdCliente] = useState("");
+
+  // Procesar datos cuando se cargan
+  useEffect(() => {
+        console.log('data', data);
+
+    if (data ) {
+      const response = data as IRespuesta<ICliente>;
+
+
+      console.log('response', response.data);
+
+      
+      if (response.exito && response.data) {
+        const clienteData = Array.isArray(response) ? response[0].data : response.data;
+        debugger;
+        // Asignar pathFoto si existe
+        if (clienteData.pathFoto) {
+          setProfileImage(`/imagenes/perfiles/${clienteData.pathFoto}`);
+        }
+        if(clienteData.id){
+          setIdCliente(clienteData.id)
+        }
+        
+        // Asignar auth2FA al estado local
+        console.log('2fa', clienteData);
+        
+        if (clienteData.auth2FA) {
+          setAuth2FALocal(clienteData.auth2FA);
+        }
+
+        setShowChangePass(clienteData.auth2FA);
+      }
+    }
+  }, [data]);
+
+  // Mostrar error si falla la carga
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(error);
+      setShowErrorToast(true);
+    }
+  }, [error]);
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,6 +103,7 @@ const Profile: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfileImage(reader.result as string);
+        // Aquí implementar lógica para subir al servidor
       };
       reader.readAsDataURL(file);
     }
@@ -49,6 +111,10 @@ const Profile: React.FC = () => {
 
   const handleClickUpload = () => {
     fileInputRef.current?.click();
+
+    console.log(fileInputRef.current?.click());
+    
+
   };
 
   const handleRemoveImage = () => {
@@ -72,11 +138,28 @@ const Profile: React.FC = () => {
     setShowSuccessToast(true);
   };
 
+  const handle2FAChange = (checked: boolean) => {
+    setAuth2FALocal(checked);
+    // Aquí implementar lógica para actualizar en el servidor
+    console.log('Actualizar 2FA a:', checked);
+  };
+
   const renderTooltip = (props: any) => (
     <Tooltip id="button-tooltip" {...props}>
       Doble factor de autenticación
     </Tooltip>
   );
+
+  // Mostrar loader mientras carga
+  if (isLoading) {
+    return (
+      <div className="hub-login-container d-flex justify-content-center align-items-center" style={{ minHeight: "100vh" }}>
+        <Spinner animation="border" variant="light" role="status">
+          <span className="visually-hidden">Cargando perfil...</span>
+        </Spinner>
+      </div>
+    );
+  }
 
   return (
     <div className="hub-login-container">
@@ -179,27 +262,31 @@ const Profile: React.FC = () => {
                   <Form.Check
                     type="switch"
                     id="2fa-switch"
-                    checked={verificar2FA}
-                    onChange={(e) => setVerificar2FA(e.target.checked)}
+                    checked={auth2FALocal}
+                    onChange={(e) => handle2FAChange(e.target.checked)}
                     label="Requiere 2FA"
                     className="text-light profile-2fa-switch"
                   />
                 </OverlayTrigger>
-              </div>
-
-              <Button
-                variant="link"
-                className="text-light p-0 profile-change-password"
-                onClick={() => setShowPasswordModal(true)}
-              >
-                Cambiar contraseña
-              </Button>
+              </div>              
 
               <div className="mt-3 text-light profile-image-info">
                 Formato: JPG, PNG, GIF
                 <br />
                 Tamaño máximo: 5MB
               </div>
+
+              <Button
+                variant="link"
+                className="text-light p-0 profile-change-password"
+                onClick={() => setShowPasswordModal(true)}
+                hidden={!showChangePass}
+              >
+                Cambiar contraseña
+              </Button>
+
+
+
             </div>
           </Col>
 

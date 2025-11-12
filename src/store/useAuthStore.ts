@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AuthState, AuthActions } from '../interfaces/state/AuthState';
@@ -6,6 +5,7 @@ import type { AuthState, AuthActions } from '../interfaces/state/AuthState';
 type AuthStore = AuthState & AuthActions;
 
 const initialState: AuthState = {
+  id: null,
   mail: null,
   nombreUsuario: null,
   verificar2FA: false,
@@ -18,12 +18,17 @@ export const useAuthStore = create<AuthStore>()(
       ...initialState,
 
       // Método para establecer todos los datos de autenticación
-      setAuth: (mail, nombreUsuario, verificar2FA) => 
+      setAuth: (id, mail, nombreUsuario, verificar2FA) => 
         set({ 
+          id,
           mail, 
           nombreUsuario, 
           verificar2FA 
         }),
+
+      // Método para establecer solo el id
+      setId: (id) => 
+        set({ id }),
 
       // Método para establecer solo el mail
       setMail: (mail) => 
@@ -44,7 +49,7 @@ export const useAuthStore = create<AuthStore>()(
       // Método para verificar si el usuario está autenticado
       isAuthenticated: () => {
         const state = get();
-        return state.mail !== null && state.nombreUsuario !== null;
+        return state.id !== null && state.mail !== null && state.nombreUsuario !== null;
       },
     }),
     {
@@ -56,15 +61,12 @@ export const useAuthStore = create<AuthStore>()(
   )
 );
 
-
-
 export const useAuthData = () => {
-  const { mail, nombreUsuario, verificar2FA } = useAuthStore();
-  return { mail, nombreUsuario, verificar2FA };
+  const { id, mail, nombreUsuario, verificar2FA } = useAuthStore();
+  return { id, mail, nombreUsuario, verificar2FA };
 };
 
-
 export const useAuthActions = () => {
-  const { setAuth, setMail, setNombreUsuario, setVerificar2FA, clearAuth, isAuthenticated } = useAuthStore();
-  return { setAuth, setMail, setNombreUsuario, setVerificar2FA, clearAuth, isAuthenticated };
+  const { setAuth, setId, setMail, setNombreUsuario, setVerificar2FA, clearAuth, isAuthenticated } = useAuthStore();
+  return { setAuth, setId, setMail, setNombreUsuario, setVerificar2FA, clearAuth, isAuthenticated };
 };

@@ -1,29 +1,12 @@
-import React, { useState, type ChangeEvent } from "react";
-import { Container, Row, Col, Card, Button, Modal, Badge, Form } from "react-bootstrap";
+import React, { useState, useEffect, type ChangeEvent } from "react";
+import { Container, Row, Col, Card, Button, Modal, Badge, Form, Spinner } from "react-bootstrap";
 import { Trash2, Edit2, MapPin, Plus } from "lucide-react";
-import { useAuthStore } from "../../../../store/useAuthStore";
+import { useAuthData } from "../../../../store/useAuthStore";
+import useGetGenericHook from "../../../../hooks/accessData/useGetGenericHook";
+import type { IRespuesta } from "../../../../interfaces/Respuesta";
+import type { IComboItem, IFiscalData, ValidationErrors } from "../../../../interfaces/billing";
 import "./styles/AddressManager.css";
 import "./styles/Profile.css";
-
-interface ValidationErrors {
-  rfc?: string;
-  razonSocial?: string;
-  correoFactura?: string;
-  regimenFiscal?: string;
-  cpFiscal?: string;
-  usoCfdi?: string;
-  formaPago?: string;
-}
-
-interface IFiscalData {
-  razonSocial: string;
-  rfc: string;
-  correoFactura: string;
-  regimenFiscal: string;
-  cpFiscal: string;
-  usoCfdi: string;
-  formaPago: string;
-}
 
 interface BillingDataTabProps {
   onSuccess: () => void;
@@ -31,7 +14,13 @@ interface BillingDataTabProps {
 }
 
 const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
-  const { nombreUsuario } = useAuthStore();
+  const { id } = useAuthData();
+
+  // Hook para obtener los combos
+  const {
+    data: combosData,
+    isLoading: isLoadingCombos,
+  } = useGetGenericHook("DatosFacturacionClientes/GetCombos");
 
   // Listado de registros fiscales (local, simulado)
   const [fiscales, setFiscales] = useState<IFiscalData[]>([]);
@@ -44,43 +33,125 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // Campos fiscales
-  const [razonSocial, setRazonSocial] = useState("");
-  const [rfc, setRfc] = useState("");
-  const [correoFactura, setCorreoFactura] = useState("");
-  const [regimenFiscal, setRegimenFiscal] = useState("");
-  const [cpFiscal, setCpFiscal] = useState("");
-  const [usoCfdi, setUsoCfdi] = useState("");
-  const [formaPago, setFormaPago] = useState("");
+  const [fiscalData, setFiscalData] = useState<IFiscalData>({
+    usuarioId: id || "",
+    razonSocial: "",
+    rfc: "",
+    correoFactura: "",
+    regimenFiscalId: "",
+    cpFiscal: "",
+    usoCfdiId: "",
+    formaPagoId: "",
+    metodoPagoId: "",
+  });
 
+  const [formasPago, setFormasPago] = useState<IComboItem[]>([]);
+  const [metodosPago, setMetodosPago] = useState<IComboItem[]>([]);
+  const [regimenesFiscales, setRegimenesFiscales] = useState<IComboItem[]>([]);
+  const [usosCfdi, setUsosCfdi] = useState<IComboItem[]>([]);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
+  // Procesar datos de combos cuando se cargan
+useEffect(() => {
+  if (combosData) {
+    const response = combosData as IRespuesta<IComboItem[][]>;
+
+    if (response.exito && response.data) {
+      // response.data es un array de arrays
+      response.data.forEach((item) => {
+        // Hacer casting explícito a array de IComboItem
+        const comboArray = item as IComboItem[];
+        
+        // Verificar que comboArray tenga elementos
+        if (comboArray.length > 0) {
+          const tipoCombo = comboArray[0].combo;
+
+          switch (tipoCombo) {
+            case "FormasPago":
+              setFormasPago(comboArray);
+              break;
+            case "MetodosPago":
+              setMetodosPago(comboArray);
+              break;
+            case "RegimenFiscal":
+              setRegimenesFiscales(comboArray);
+              break;
+            case "UsoCfdi":
+              setUsosCfdi(comboArray);
+              break;
+          }
+        }
+      });
+    }
+  }
+}, [combosData]);
+
   const validarRFC = (rfcValue: string): boolean => {
-    const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
-    return rfcRegex.test(rfcValue);
+    // RFC Genérico
+    if (rfcValue === "XAXX010101000") {
+      return true;
+    }
+    // Persona Moral: 12 caracteres
+    const rfcMoralRegex = /^[A-ZÑ&]{3}[0-9]{6}[A-Z0-9]{3}$/;
+    // Persona Física: 13 caracteres
+    const rfcFisicaRegex = /^[A-ZÑ&]{4}[0-9]{6}[A-Z0-9]{3}$/;
+    return rfcMoralRegex.test(rfcValue) || rfcFisicaRegex.test(rfcValue);
   };
 
   const validarCorreo = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const handleRfcChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const rfcValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    if (rfcValue.length <= 13) setRfc(rfcValue);
-    if (validationErrors.rfc) setValidationErrors(prev => ({ ...prev, rfc: undefined }));
-  };
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const { name, value } = e.target;
 
-  const handleCpChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, "");
-    if (value.length <= 5) setCpFiscal(value);
-    if (validationErrors.cpFiscal) setValidationErrors(prev => ({ ...prev, cpFiscal: undefined }));
+  // Validación especial para RFC
+  if (name === "rfc") {
+    const rfcUpperCase = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (rfcUpperCase.length <= 13) {
+      setFiscalData(prev => ({ ...prev, [name]: rfcUpperCase }));
+    }
+    if (validationErrors[name as keyof ValidationErrors]) {
+      setValidationErrors(prev => ({ ...prev, [name]: undefined }));
+    }
+    return;
+  }
+
+  // Validación para código postal (solo números, máximo 5 dígitos)
+  if (name === "cpFiscal") {
+    const numericValue = value.replace(/\D/g, "");
+    if (numericValue.length <= 5) {
+      setFiscalData(prev => ({ ...prev, [name]: numericValue }));
+    }
+    if (validationErrors[name as keyof ValidationErrors]) {
+      setValidationErrors(prev => ({ ...prev, [name]: undefined }));
+    }
+    return;
+  }
+
+  setFiscalData(prev => ({ ...prev, [name]: value }));
+
+  // Limpiar error de validación
+  if (validationErrors[name as keyof ValidationErrors]) {
+    setValidationErrors(prev => ({ ...prev, [name]: undefined }));
+  }
+};
+
+  const setRFCGenerico = () => {
+    setFiscalData(prev => ({ ...prev, rfc: "XAXX010101000" }));
+    setValidationErrors(prev => ({ ...prev, rfc: undefined }));
   };
 
   const resetFields = () => {
-    setRazonSocial("");
-    setRfc("");
-    setCorreoFactura("");
-    setRegimenFiscal("");
-    setCpFiscal("");
-    setUsoCfdi("");
-    setFormaPago("");
+    setFiscalData({
+      usuarioId: id || "",
+      razonSocial: "",
+      rfc: "",
+      correoFactura: "",
+      regimenFiscalId: "",
+      cpFiscal: "",
+      usoCfdiId: "",
+      formaPagoId: "",
+      metodoPagoId: "",
+    });
     setValidationErrors({});
   };
 
@@ -95,13 +166,7 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
   const handleEdit = (index: number) => {
     const item = fiscales[index];
     setEditingIndex(index);
-    setRazonSocial(item.razonSocial);
-    setRfc(item.rfc);
-    setCorreoFactura(item.correoFactura);
-    setRegimenFiscal(item.regimenFiscal);
-    setCpFiscal(item.cpFiscal);
-    setUsoCfdi(item.usoCfdi);
-    setFormaPago(item.formaPago);
+    setFiscalData(item);
     setShowModal(true);
   };
 
@@ -110,54 +175,86 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
     setEditingIndex(null);
   };
 
-  // Guardar datos fiscales (sin AddressForm)
-  const handleSaveFiscal = async () => {
+  // Validar datos fiscales
+  const validateData = (): boolean => {
     const errs: ValidationErrors = {};
+    let isValid = true;
 
-    if (!razonSocial.trim()) errs.razonSocial = "La razón social o nombre es requerido";
+    if (!fiscalData.razonSocial.trim()) {
+      errs.razonSocial = "La razón social es requerida";
+      isValid = false;
+    }
 
-    if (!rfc.trim()) errs.rfc = "El RFC es requerido";
-    else if (!validarRFC(rfc)) errs.rfc = "El RFC no tiene un formato válido";
+    if (!fiscalData.rfc.trim()) {
+      errs.rfc = "El RFC es requerido";
+      isValid = false;
+    } else if (!validarRFC(fiscalData.rfc)) {
+      errs.rfc = "RFC inválido. Debe ser de 12 caracteres (Moral) o 13 (Física)";
+      isValid = false;
+    }
 
-    if (!correoFactura.trim()) errs.correoFactura = "El correo de facturación es requerido";
-    else if (!validarCorreo(correoFactura)) errs.correoFactura = "El correo no es válido";
+    if (!fiscalData.correoFactura.trim()) {
+      errs.correoFactura = "El correo de facturación es requerido";
+      isValid = false;
+    } else if (!validarCorreo(fiscalData.correoFactura)) {
+      errs.correoFactura = "El correo no es válido";
+      isValid = false;
+    }
 
-    if (!regimenFiscal.trim()) errs.regimenFiscal = "El régimen fiscal es requerido";
+    if (!fiscalData.regimenFiscalId) {
+      errs.regimenFiscalId = "El régimen fiscal es requerido";
+      isValid = false;
+    }
 
-    if (!cpFiscal.trim()) errs.cpFiscal = "El código postal fiscal es requerido";
-    else if (!/^\d{5}$/.test(cpFiscal)) errs.cpFiscal = "El código postal debe tener 5 dígitos";
+    if (!fiscalData.cpFiscal.trim()) {
+      errs.cpFiscal = "El código postal fiscal es requerido";
+      isValid = false;
+    } else if (!/^\d{5}$/.test(fiscalData.cpFiscal)) {
+      errs.cpFiscal = "El código postal debe tener 5 dígitos";
+      isValid = false;
+    }
 
-    if (!usoCfdi.trim()) errs.usoCfdi = "El uso de CFDI es requerido";
-    if (!formaPago.trim()) errs.formaPago = "La forma de pago es requerida";
+    if (!fiscalData.usoCfdiId) {
+      errs.usoCfdiId = "El uso de CFDI es requerido";
+      isValid = false;
+    }
 
-    if (Object.keys(errs).length) {
-      setValidationErrors(errs);
-      onError("Por favor completa los campos requeridos");
+    if (!fiscalData.formaPagoId) {
+      errs.formaPagoId = "La forma de pago es requerida";
+      isValid = false;
+    }
+
+    if (!fiscalData.metodoPagoId) {
+      errs.metodoPagoId = "El método de pago es requerido";
+      isValid = false;
+    }
+
+    setValidationErrors(errs);
+    return isValid;
+  };
+
+  // Guardar datos fiscales
+  const handleSaveFiscal = async () => {
+    if (!validateData()) {
+      onError("Por favor completa todos los campos correctamente");
       return;
     }
 
     setIsLoading(true);
     try {
-      // Simular llamada API
+      // Aquí implementarás la llamada al API para guardar los datos
+      // const response = await axios.post('endpoint', fiscalData);
+      
+      // Simulación temporal
       await new Promise(resolve => setTimeout(resolve, 800));
-
-      const nuevo: IFiscalData = {
-        razonSocial,
-        rfc,
-        correoFactura,
-        regimenFiscal,
-        cpFiscal,
-        usoCfdi,
-        formaPago,
-      };
 
       setFiscales(prev => {
         if (editingIndex !== null) {
           const copia = [...prev];
-          copia[editingIndex] = nuevo;
+          copia[editingIndex] = fiscalData;
           return copia;
         }
-        return [...prev, nuevo];
+        return [...prev, fiscalData];
       });
 
       onSuccess();
@@ -176,6 +273,21 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
       setFiscales(prev => prev.filter((_, i) => i !== index));
     }
   };
+
+  // Función auxiliar para obtener el texto del combo por ID
+  const getComboText = (comboArray: IComboItem[], id: string): string => {
+    const item = comboArray.find(c => c.valor === id);
+    return item ? item.texto : id;
+  };
+
+  if (isLoadingCombos) {
+    return (
+      <div className="text-center py-5">
+        <Spinner animation="border" variant="light" />
+        <p className="text-light mt-2">Cargando datos...</p>
+      </div>
+    );
+  }
 
   return (
     <Container fluid className="p-0" style={{ marginTop: "15px" }}>
@@ -212,10 +324,22 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
                       <Badge bg="secondary" className="badge-address-type">Facturación</Badge>
                     </div>
                     <div className="d-flex gap-2">
-                      <Button variant="outline-light" size="sm" className="btn-icon-action" onClick={() => handleEdit(index)} title="Editar">
+                      <Button 
+                        variant="outline-light" 
+                        size="sm" 
+                        className="btn-icon-action" 
+                        onClick={() => handleEdit(index)} 
+                        title="Editar"
+                      >
                         <Edit2 size={16} />
                       </Button>
-                      <Button variant="outline-danger" size="sm" className="btn-icon-action" onClick={() => handleDelete(index)} title="Eliminar">
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm" 
+                        className="btn-icon-action" 
+                        onClick={() => handleDelete(index)} 
+                        title="Eliminar"
+                      >
                         <Trash2 size={16} />
                       </Button>
                     </div>
@@ -223,10 +347,11 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
                   <div className="address-details">
                     <p className="mb-1 text-light"><strong>RFC:</strong> {item.rfc}</p>
                     <p className="mb-1 text-light"><strong>Correo:</strong> {item.correoFactura}</p>
-                    <p className="mb-1 text-light"><strong>Régimen:</strong> {item.regimenFiscal}</p>
+                    <p className="mb-1 text-light"><strong>Régimen:</strong> {getComboText(regimenesFiscales, item.regimenFiscalId)}</p>
                     <p className="mb-1 text-light"><strong>C.P. Fiscal:</strong> {item.cpFiscal}</p>
-                    <p className="mb-1 text-light"><strong>Uso CFDI:</strong> {item.usoCfdi}</p>
-                    <p className="mb-1 text-light"><strong>Forma de pago:</strong> {item.formaPago}</p>
+                    <p className="mb-1 text-light"><strong>Uso CFDI:</strong> {getComboText(usosCfdi, item.usoCfdiId)}</p>
+                    <p className="mb-1 text-light"><strong>Forma de pago:</strong> {getComboText(formasPago, item.formaPagoId)}</p>
+                    <p className="mb-1 text-light"><strong>Método de pago:</strong> {getComboText(metodosPago, item.metodoPagoId)}</p>
                   </div>
                 </Card.Body>
               </Card>
@@ -235,21 +360,24 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
         </Row>
       )}
 
-      {/* Modal solo con datos fiscales */}
+      {/* Modal con datos fiscales */}
       <Modal show={showModal} onHide={handleCloseModal} size="lg" centered className="address-modal">
         <Modal.Header closeButton className="bg-dark text-white border-secondary">
-          <Modal.Title>{editingIndex !== null ? "Editar Datos de Facturación" : "Agregar Datos de Facturación"}</Modal.Title>
+          <Modal.Title>
+            {editingIndex !== null ? "Editar Datos de Facturación" : "Agregar Datos de Facturación"}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-dark">
           <Row className="mb-3">
-            <Col md={6}>
+            <Col md={12}>
               <Form.Group controlId="formRazonSocial">
-                <Form.Label>Razón social o nombre *</Form.Label>
+                <Form.Label>Razón Social *</Form.Label>
                 <Form.Control
                   type="text"
-                  placeholder="Razón social o nombre"
-                  value={razonSocial}
-                  onChange={(e) => setRazonSocial(e.target.value)}
+                  placeholder="Nombre o Razón Social"
+                  name="razonSocial"
+                  value={fiscalData.razonSocial}
+                  onChange={handleInputChange}
                   isInvalid={!!validationErrors.razonSocial}
                 />
                 <Form.Control.Feedback type="invalid">
@@ -257,14 +385,52 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
                 </Form.Control.Feedback>
               </Form.Group>
             </Col>
+          </Row>
+
+          <Row className="mb-3">
+            <Col md={8}>
+              <Form.Group controlId="formRFC">
+                <Form.Label>RFC *</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="RFC (12 o 13 caracteres)"
+                  name="rfc"
+                  value={fiscalData.rfc}
+                  onChange={handleInputChange}
+                  maxLength={13}
+                  isInvalid={!!validationErrors.rfc}
+                />
+                <Form.Control.Feedback type="invalid">
+                  {validationErrors.rfc}
+                </Form.Control.Feedback>
+                <Form.Text className="text-light profile-form-text">
+                  12 caracteres para Persona Moral, 13 para Persona Física
+                </Form.Text>
+              </Form.Group>
+            </Col>
+            {/* <Col md={4}>
+              <Form.Label>&nbsp;</Form.Label>
+              <Button
+                variant="outline-light"
+                className="w-100"
+                onClick={setRFCGenerico}
+                type="button"
+              >
+                RFC Genérico
+              </Button>
+            </Col> */}
+          </Row>
+
+          <Row className="mb-3">
             <Col md={6}>
               <Form.Group controlId="formCorreoFactura">
-                <Form.Label>Correo de facturación *</Form.Label>
+                <Form.Label>Correo de Facturación *</Form.Label>
                 <Form.Control
                   type="email"
                   placeholder="correo@ejemplo.com"
-                  value={correoFactura}
-                  onChange={(e) => setCorreoFactura(e.target.value)}
+                  name="correoFactura"
+                  value={fiscalData.correoFactura}
+                  onChange={handleInputChange}
                   isInvalid={!!validationErrors.correoFactura}
                 />
                 <Form.Control.Feedback type="invalid">
@@ -272,35 +438,15 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
                 </Form.Control.Feedback>
               </Form.Group>
             </Col>
-          </Row>
-
-          <Row className="mb-3">
-            <Col md={6}>
-              <Form.Group controlId="formRFC">
-                <Form.Label>RFC *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="RFC (12 o 13 caracteres)"
-                  value={rfc}
-                  onChange={handleRfcChange}
-                  name="rfc"
-                  maxLength={13}
-                  isInvalid={!!validationErrors.rfc}
-                  className="profile-rfc-input"
-                />
-                <Form.Control.Feedback type="invalid">
-                  {validationErrors.rfc}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
             <Col md={6}>
               <Form.Group controlId="formCpFiscal">
-                <Form.Label>Código Postal Domicilio Fiscal *</Form.Label>
+                <Form.Label>Código Postal Fiscal *</Form.Label>
                 <Form.Control
                   type="text"
-                  placeholder="Código Postal (5 dígitos)"
-                  value={cpFiscal}
-                  onChange={handleCpChange}
+                  placeholder="5 dígitos"
+                  name="cpFiscal"
+                  value={fiscalData.cpFiscal}
+                  onChange={handleInputChange}
                   maxLength={5}
                   isInvalid={!!validationErrors.cpFiscal}
                 />
@@ -314,31 +460,43 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
           <Row className="mb-3">
             <Col md={6}>
               <Form.Group controlId="formRegimenFiscal">
-                <Form.Label>Régimen fiscal *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Régimen fiscal"
-                  value={regimenFiscal}
-                  onChange={(e) => setRegimenFiscal(e.target.value)}
-                  isInvalid={!!validationErrors.regimenFiscal}
-                />
+                <Form.Label>Régimen Fiscal *</Form.Label>
+                <Form.Select
+                  name="regimenFiscalId"
+                  value={fiscalData.regimenFiscalId}
+                  onChange={handleInputChange}
+                  isInvalid={!!validationErrors.regimenFiscalId}
+                >
+                  <option value="">Selecciona un régimen fiscal</option>
+                  {regimenesFiscales.map((regimen) => (
+                    <option key={regimen.valor} value={regimen.valor}>
+                      {regimen.texto}
+                    </option>
+                  ))}
+                </Form.Select>
                 <Form.Control.Feedback type="invalid">
-                  {validationErrors.regimenFiscal}
+                  {validationErrors.regimenFiscalId}
                 </Form.Control.Feedback>
               </Form.Group>
             </Col>
             <Col md={6}>
-              <Form.Group controlId="formFormaPago">
-                <Form.Label>Forma de pago *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Forma de pago"
-                  value={formaPago}
-                  onChange={(e) => setFormaPago(e.target.value)}
-                  isInvalid={!!validationErrors.formaPago}
-                />
+              <Form.Group controlId="formUsoCfdi">
+                <Form.Label>Uso de CFDI *</Form.Label>
+                <Form.Select
+                  name="usoCfdiId"
+                  value={fiscalData.usoCfdiId}
+                  onChange={handleInputChange}
+                  isInvalid={!!validationErrors.usoCfdiId}
+                >
+                  <option value="">Selecciona un uso de CFDI</option>
+                  {usosCfdi.map((uso) => (
+                    <option key={uso.valor} value={uso.valor}>
+                      {uso.texto}
+                    </option>
+                  ))}
+                </Form.Select>
                 <Form.Control.Feedback type="invalid">
-                  {validationErrors.formaPago}
+                  {validationErrors.usoCfdiId}
                 </Form.Control.Feedback>
               </Form.Group>
             </Col>
@@ -346,26 +504,67 @@ const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
 
           <Row className="mb-3">
             <Col md={6}>
-              <Form.Group controlId="formUsoCfdi">
-                <Form.Label>Uso de CFDI *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Uso de CFDI"
-                  value={usoCfdi}
-                  onChange={(e) => setUsoCfdi(e.target.value)}
-                  isInvalid={!!validationErrors.usoCfdi}
-                />
+              <Form.Group controlId="formFormaPago">
+                <Form.Label>Forma de Pago *</Form.Label>
+                <Form.Select
+                  name="formaPagoId"
+                  value={fiscalData.formaPagoId}
+                  onChange={handleInputChange}
+                  isInvalid={!!validationErrors.formaPagoId}
+                >
+                  <option value="">Selecciona una forma de pago</option>
+                  {formasPago.map((forma) => (
+                    <option key={forma.valor} value={forma.valor}>
+                      {forma.texto}
+                    </option>
+                  ))}
+                </Form.Select>
                 <Form.Control.Feedback type="invalid">
-                  {validationErrors.usoCfdi}
+                  {validationErrors.formaPagoId}
+                </Form.Control.Feedback>
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group controlId="formMetodoPago">
+                <Form.Label>Método de Pago *</Form.Label>
+                <Form.Select
+                  name="metodoPagoId"
+                  value={fiscalData.metodoPagoId}
+                  onChange={handleInputChange}
+                  isInvalid={!!validationErrors.metodoPagoId}
+                >
+                  <option value="">Selecciona un método de pago</option>
+                  {metodosPago.map((metodo) => (
+                    <option key={metodo.valor} value={metodo.valor}>
+                      {metodo.texto}
+                    </option>
+                  ))}
+                </Form.Select>
+                <Form.Control.Feedback type="invalid">
+                  {validationErrors.metodoPagoId}
                 </Form.Control.Feedback>
               </Form.Group>
             </Col>
           </Row>
         </Modal.Body>
         <Modal.Footer className="bg-dark border-secondary">
-          <Button variant="secondary" onClick={handleCloseModal}>Cancelar</Button>
-          <Button className="hub-btn-gamer" onClick={handleSaveFiscal} disabled={isLoading}>
-            {editingIndex !== null ? "Guardar cambios" : "Guardar"}
+          <Button 
+            className="w-100 hub-btn-gamer" 
+            onClick={handleSaveFiscal} 
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <span
+                  className="spinner-grow spinner-grow-sm me-2"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
+                Guardando...
+              </>
+            ) : (
+              "Guardar Datos de Facturación"
+            )}
           </Button>
         </Modal.Footer>
       </Modal>

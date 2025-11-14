@@ -30,3 +30,15 @@ export interface ValidationErrors {
   coloniaId?: string;
   municipioId?: string;
 }
+
+export interface IColoniaData {
+  idColonia: number;
+  colonia: string;
+  codigoPostal: string;
+  idMunicipio: number;
+  municipio: string;
+  idEntidad: number;
+  entidad: string;
+  idPais: number;
+  pais: string;
+}

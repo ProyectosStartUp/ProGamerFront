@@ -1,8 +1,8 @@
 import React, { useState, useEffect, type ChangeEvent } from "react";
 import { Form, Button, Row, Col } from "react-bootstrap";
-import type { IAddressData, IColonia, IMunicipio, ValidationErrors } from "../../../../interfaces/address";
-import { MUNICIPIOS_DUMMY, getColoniasByCP, getMunicipioByCP } from "../../../../utils/address.data";
-
+import type { IAddressData, ValidationErrors,IColoniaData } from "../../../../interfaces/address";
+import type { IRespuesta } from "../../../../interfaces/Respuesta";
+import axi from "../../../../services/apiClient";
 
 interface AddressFormProps {
   tipoDireccion: 1 | 2;
@@ -32,14 +32,79 @@ const AddressForm: React.FC<AddressFormProps> = ({
     referencias: initialData?.referencias || ""
   });
 
-  const [colonias, setColonias] = useState<IColonia[]>([]);
-  const [municipios] = useState<IMunicipio[]>(MUNICIPIOS_DUMMY);
-
+  const [colonias, setColonias] = useState<IColoniaData[]>([]);
+  const [municipioSeleccionado, setMunicipioSeleccionado] = useState<string>("");
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const [isLoadingColonias, setIsLoadingColonias] = useState<boolean>(false);
 
   useEffect(() => {
     setAddressData(prev => ({ ...prev, usuarioId }));
   }, [usuarioId]);
+
+  const fetchColonias = async (cp: string) => {
+    if (cp.length !== 5) return;
+
+    setIsLoadingColonias(true);
+    try {
+      const response = await axi.get<IRespuesta<IColoniaData[]>>(`Direcciones/GetColonias/${cp}`);
+      
+      if (response.data.exito && response.data.data) {
+        let coloniasArray: IColoniaData[] = [];
+        
+        // Verificar si response.data.data es un array
+        if (Array.isArray(response.data.data)) {
+          // Verificar si el primer elemento es un array (array de arrays)
+          if (response.data.data.length > 0 && Array.isArray(response.data.data[0])) {
+            coloniasArray = (response.data.data as any).flat() as IColoniaData[];
+          } else {
+            // Es un array simple de IColoniaData
+            coloniasArray = response.data.data as IColoniaData[];
+          }
+        }
+        
+        if (coloniasArray.length > 0) {
+          setColonias(coloniasArray);
+          
+          // Auto-seleccionar el municipio (todos tienen el mismo municipio)
+          const primerColonia = coloniasArray[0];
+          setMunicipioSeleccionado(primerColonia.municipio);
+          
+          setAddressData(prev => ({ 
+            ...prev, 
+            municipioId: primerColonia.idMunicipio.toString(),
+            coloniaId: "" // Reset colonia para que el usuario seleccione
+          }));
+        } else {
+          setColonias([]);
+          setMunicipioSeleccionado("");
+          setAddressData(prev => ({ 
+            ...prev, 
+            coloniaId: "",
+            municipioId: ""
+          }));
+        }
+      } else {
+        setColonias([]);
+        setMunicipioSeleccionado("");
+        setAddressData(prev => ({ 
+          ...prev, 
+          coloniaId: "",
+          municipioId: ""
+        }));
+      }
+    } catch (error) {
+      console.error('Error al obtener colonias:', error);
+      setColonias([]);
+      setMunicipioSeleccionado("");
+      setAddressData(prev => ({ 
+        ...prev, 
+        coloniaId: "",
+        municipioId: ""
+      }));
+    } finally {
+      setIsLoadingColonias(false);
+    }
+  };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -67,19 +132,11 @@ const AddressForm: React.FC<AddressFormProps> = ({
     const cp = e.target.value;
 
     if (cp.length === 5) {
-      // Obtener colonias por código postal
-      const coloniasEncontradas = getColoniasByCP(cp);
-      setColonias(coloniasEncontradas);
-      
-      // Auto-seleccionar municipio basado en el código postal
-      const municipioId = getMunicipioByCP(cp);
-      setAddressData(prev => ({ 
-        ...prev, 
-        municipioId,
-        coloniaId: "" // Reset colonia cuando cambia el CP
-      }));
+      // Buscar colonias cuando el CP tenga 5 dígitos
+      await fetchColonias(cp);
     } else {
       setColonias([]);
+      setMunicipioSeleccionado("");
       setAddressData(prev => ({ 
         ...prev, 
         coloniaId: "",
@@ -223,6 +280,12 @@ const AddressForm: React.FC<AddressFormProps> = ({
             <Form.Control.Feedback type="invalid">
               {validationErrors.codigoPostal}
             </Form.Control.Feedback>
+            {isLoadingColonias && (
+              <Form.Text className="text-light profile-form-text">
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Buscando colonias...
+              </Form.Text>
+            )}
           </Form.Group>
         </Col>
 
@@ -233,20 +296,20 @@ const AddressForm: React.FC<AddressFormProps> = ({
               value={addressData.coloniaId}
               onChange={handleInputChange}
               name="coloniaId"
-              disabled={colonias.length === 0}
+              disabled={colonias.length === 0 || isLoadingColonias}
               isInvalid={!!validationErrors.coloniaId}
             >
               <option value="">Selecciona una colonia</option>
               {colonias.map((colonia) => (
-                <option key={colonia.id} value={colonia.id}>
-                  {colonia.descripcion}
+                <option key={colonia.idColonia} value={colonia.idColonia}>
+                  {colonia.colonia}
                 </option>
               ))}
             </Form.Select>
             <Form.Control.Feedback type="invalid">
               {validationErrors.coloniaId}
             </Form.Control.Feedback>
-            {addressData.codigoPostal.length === 5 && colonias.length === 0 && (
+            {addressData.codigoPostal.length === 5 && colonias.length === 0 && !isLoadingColonias && (
               <Form.Text className="text-light profile-form-text">
                 No se encontraron colonias para este código postal
               </Form.Text>
@@ -257,22 +320,20 @@ const AddressForm: React.FC<AddressFormProps> = ({
 
       <Form.Group className="mb-3" controlId={`formMunicipio${tipoDireccion}`}>
         <Form.Label>Municipio *</Form.Label>
-        <Form.Select
-          value={addressData.municipioId}
-          onChange={handleInputChange}
-          name="municipioId"
+        <Form.Control
+          type="text"
+          value={municipioSeleccionado}
+          readOnly
+          disabled
+          placeholder="Se auto-completará con el código postal"
           isInvalid={!!validationErrors.municipioId}
-        >
-          <option value="">Selecciona un municipio</option>
-          {municipios.map((municipio) => (
-            <option key={municipio.id} value={municipio.id}>
-              {municipio.descripcion}
-            </option>
-          ))}
-        </Form.Select>
+        />
         <Form.Control.Feedback type="invalid">
           {validationErrors.municipioId}
         </Form.Control.Feedback>
+        <Form.Text className="text-light profile-form-text">
+          El municipio se selecciona automáticamente al ingresar el código postal
+        </Form.Text>
       </Form.Group>
 
       {isShippingAddress && (

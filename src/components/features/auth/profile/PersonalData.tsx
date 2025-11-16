@@ -1,15 +1,10 @@
-import React, { useState, type ChangeEvent } from "react";
+import React, { useState, useEffect, type ChangeEvent } from "react";
 import { Form, Button, Row, Col } from "react-bootstrap";
-import { useAuthStore } from "../../../../store/useAuthStore";
+import { Edit2 } from "lucide-react";
+import usePostGenericHook from "../../../../hooks/accessData/usePostGenericHook";
+import type { IRespuesta } from "../../../../interfaces/Respuesta";
+import type { IPersonalData, ISendDataPersonal } from "../../../../interfaces/clientes";
 import "./styles/Profile.css";
-
-export interface IPersonalData {
-  usuarioId: string;
-  nombres: string;
-  apellidoPaterno: string;
-  apellidoMaterno: string;
-  telefono: string;
-}
 
 interface ValidationErrors {
   nombres?: string;
@@ -19,23 +14,48 @@ interface ValidationErrors {
 }
 
 interface PersonalDataTabProps {
+  initialData: IPersonalData;
   onSuccess: () => void;
   onError: (message: string) => void;
 }
 
-const PersonalDataTab: React.FC<PersonalDataTabProps> = ({ onSuccess, onError }) => {
-  const { nombreUsuario } = useAuthStore();
-
-  const [personalData, setPersonalData] = useState<IPersonalData>({
-    usuarioId: nombreUsuario || "",
-    nombres: "",
-    apellidoPaterno: "",
-    apellidoMaterno: "",
-    telefono: ""
-  });
-
+const PersonalDataTab: React.FC<PersonalDataTabProps> = ({ 
+  initialData,
+  onSuccess, 
+  onError 
+}) => {
+  const [personalData, setPersonalData] = useState<IPersonalData>(initialData);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [hasExistingData, setHasExistingData] = useState<boolean>(false);
+
+  // Hook para guardar datos personales
+  const { postData, isLoading, error } = usePostGenericHook<ISendDataPersonal, IRespuesta<any>>(
+    "Clientes/Actualizar"
+  );
+
+  // Actualizar el estado cuando cambien los datos iniciales
+  useEffect(() => {
+    setPersonalData(initialData);
+    
+    // Verificar si ya existen datos personales (si al menos el nombre tiene valor)
+    const dataExists = !!(
+      initialData.nombres?.trim() || 
+      initialData.apellidoPaterno?.trim() || 
+      initialData.apellidoMaterno?.trim() || 
+      initialData.telefono?.trim()
+    );
+    
+    setHasExistingData(dataExists);
+    setIsEditMode(!dataExists); // Si no hay datos, activar modo edición
+  }, [initialData]);
+
+  // Manejar errores del hook
+  useEffect(() => {
+    if (error) {
+      onError(error);
+    }
+  }, [error, onError]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -89,31 +109,64 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({ onSuccess, onError })
     return isValid;
   };
 
+  const handleEditClick = () => {
+    setIsEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    // Restaurar datos originales
+    setPersonalData(initialData);
+    setValidationErrors({});
+    setIsEditMode(false);
+  };
+
   const handleSave = async () => {
     if (!validateData()) {
+      onError("Por favor, completa todos los campos correctamente");
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // TODO: Llamar al API con usuarioId como llave
-      console.log("Guardando datos personales:", personalData);
+      // Mapear los datos al formato que espera el API
+      const dataToSend: ISendDataPersonal = {
+        idUsuario: personalData.idUsuario,
+        idCliente: personalData.id,
+        nombre: personalData.nombres,
+        apellidoP: personalData.apellidoPaterno,
+        apellidoM: personalData.apellidoMaterno,
+        telefono: personalData.telefono
+      };
 
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await postData(dataToSend);
 
-      onSuccess();
+      if (response && response.exito) {
+        setHasExistingData(true);
+        setIsEditMode(false);
+        onSuccess();
+      } else {
+        onError(response?.mensaje || "Error al guardar los datos personales");
+      }
     } catch (error) {
-      console.error("Error al guardar datos personales:", error);
       onError("Error al guardar los datos personales");
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
     <div className="mt-4">
-      <h5 className="text-white profile-section-title">Datos Personales</h5>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h5 className="text-white profile-section-title mb-0">Datos Personales</h5>
+        {hasExistingData && !isEditMode && (
+          <Button
+            variant="outline-light"
+            size="sm"
+            onClick={handleEditClick}
+            className="d-flex align-items-center gap-2"
+          >
+            <Edit2 size={16} />
+            Editar
+          </Button>
+        )}
+      </div>
 
       <Form.Group className="mb-3" controlId="formNombres">
         <Form.Label>Nombres *</Form.Label>
@@ -124,6 +177,8 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({ onSuccess, onError })
           onChange={handleInputChange}
           name="nombres"
           isInvalid={!!validationErrors.nombres}
+          disabled={isLoading || !isEditMode}
+          readOnly={!isEditMode}
         />
         <Form.Control.Feedback type="invalid">
           {validationErrors.nombres}
@@ -141,6 +196,8 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({ onSuccess, onError })
               onChange={handleInputChange}
               name="apellidoPaterno"
               isInvalid={!!validationErrors.apellidoPaterno}
+              disabled={isLoading || !isEditMode}
+              readOnly={!isEditMode}
             />
             <Form.Control.Feedback type="invalid">
               {validationErrors.apellidoPaterno}
@@ -158,6 +215,8 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({ onSuccess, onError })
               onChange={handleInputChange}
               name="apellidoMaterno"
               isInvalid={!!validationErrors.apellidoMaterno}
+              disabled={isLoading || !isEditMode}
+              readOnly={!isEditMode}
             />
             <Form.Control.Feedback type="invalid">
               {validationErrors.apellidoMaterno}
@@ -176,31 +235,51 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({ onSuccess, onError })
           name="telefono"
           maxLength={10}
           isInvalid={!!validationErrors.telefono}
+          disabled={isLoading || !isEditMode}
+          readOnly={!isEditMode}
         />
         <Form.Control.Feedback type="invalid">
           {validationErrors.telefono}
         </Form.Control.Feedback>
       </Form.Group>
 
-      <Button
-        type="submit"
-        className="w-100 hub-btn-gamer"
-        disabled={isLoading}
-        onClick={handleSave}
-      >
-        {isLoading ? (
-          <>
-            <span
-              className="spinner-grow spinner-grow-sm profile-spinner"
-              role="status"
-              aria-hidden="true"
-            ></span>
-            Guardando...
-          </>
-        ) : (
-          "Guardar Datos Personales"
-        )}
-      </Button>
+      {isEditMode && (
+        <Row>
+          <Col md={6}>
+            {hasExistingData && (
+              <Button
+                variant="outline-secondary"
+                className="w-100 mb-2 mb-md-0"
+                onClick={handleCancelEdit}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
+            )}
+          </Col>
+          <Col md={hasExistingData ? 6 : 12}>
+            <Button
+              type="submit"
+              className="w-100 hub-btn-gamer"
+              disabled={isLoading}
+              onClick={handleSave}
+            >
+              {isLoading ? (
+                <>
+                  <span
+                    className="spinner-grow spinner-grow-sm profile-spinner"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Guardando...
+                </>
+              ) : (
+                "Guardar Datos Personales"
+              )}
+            </Button>
+          </Col>
+        </Row>
+      )}
     </div>
   );
 };

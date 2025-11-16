@@ -75,17 +75,20 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ onSuccess, onErro
       }
 
       let user: IUsuarioRespuesta = {
-        mail: "",
-        nombreUsuario: "",
-        verificar2FA: false,
-        token: "",
+        id:_data?.id!,
+        mail: _data?.mail!,
+        nombreUsuario: _data?.nombreUsuario!,
+        verificar2FA: _data?.verificar2FA!,
+        token: _data?.token!,
+        uKey:_data?.uKey!
       };
 
       // Usuario existe y está activo - Login exitoso
       if (response?.exito) {
-        user = Array.isArray(response.data) ? response.data[0] : response.data;
+        // user = Array.isArray(response.data) ? response.data[0] : response.data;
 
-        setAuth(user.mail, user.nombreUsuario, user.verificar2FA);
+        setAuth(user.id,user.mail, user.nombreUsuario, user.verificar2FA,_data?.uKey!);
+
         localStorage.setItem("token", user.token);
         
         if (user.verificar2FA) {

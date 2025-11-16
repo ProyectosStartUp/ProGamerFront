@@ -12,7 +12,6 @@ import {
 } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { PersonCircle, Camera } from "react-bootstrap-icons";
-
 import { useAuthData, useAuthActions } from "../../../../store/useAuthStore";
 import ToastNotification from "../../../common/ToastNotification";
 import ChangePasswordModal from "./ChangePasswordModal";
@@ -20,10 +19,11 @@ import PersonalData from "./PersonalData";
 import ShippingData from "./ShippingData";
 import BillingData from "./BillingData";
 import useGetGenericHook from "../../../../hooks/accessData/useGetGenericHook";
-import type { IRespuesta } from "../../../../interfaces/Respuesta";
-import type { ICliente } from "../../../../interfaces/clientes";
-import "./styles/Profile.css";
 import usePostGenericHook from "../../../../hooks/accessData/usePostGenericHook";
+import type { IRespuesta } from "../../../../interfaces/Respuesta";
+import type { ICliente, IPersonalData } from "../../../../interfaces/clientes";
+import "./styles/Profile.css";
+import type { IGenericParam } from "../../../../interfaces/parametros";
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -54,23 +54,32 @@ const Profile: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [showChangePass, setShowChangePass] = useState(true);
   const [idCliente, setIdCliente] = useState("");
+  
+  // Estado para datos personales
+  const [personalDataInitial, setPersonalDataInitial] = useState<IPersonalData | null>(null);
 
-  // Hook para subir foto - la URL se construye dinámicamente con el idCliente
+  // Hook para subir foto 
   const {
     postData,
     isLoading: isLoadingPhoto,
     error: errorPhoto,
   } = usePostGenericHook<FormData, IRespuesta<any>>(
-    `Clientes/GuardarFoto?IdCliente=${idCliente || id || ""}`
+    `Clientes/GuardarFoto/${idCliente || id || ''}`
+  );
+
+  // Hook para activar/desactivar 2FA
+  const {
+    postData: post2FA,
+    isLoading: isLoading2FA,
+    error: error2FA,
+  } = usePostGenericHook<IGenericParam, IRespuesta<any>>(
+    "Usuarios/Activar2FN"
   );
 
   // Procesar datos cuando se cargan
   useEffect(() => {
-    console.log("data", data);
-
     if (data) {
       const response = data as IRespuesta<ICliente>;
-      console.log("response", response.data);
 
       if (response.exito && response.data) {
         const clienteData = Array.isArray(response)
@@ -79,23 +88,32 @@ const Profile: React.FC = () => {
 
         // Asignar pathFoto si existe
         if (clienteData.pathFoto) {
-          setProfileImage(`/imagenes/perfiles/${clienteData.pathFoto}`);
+          setProfileImage(clienteData.pathFoto);
         }
+        
         if (clienteData.id) {
           setIdCliente(clienteData.id);
         }
 
         // Asignar auth2FA al estado local
-        console.log("2fa", clienteData);
-
-        if (clienteData.auth2FA) {
+        if (clienteData.auth2FA !== undefined) {
           setAuth2FALocal(clienteData.auth2FA);
         }
 
         setShowChangePass(clienteData.auth2FA);
+
+        // Preparar datos personales para el componente hijo
+        setPersonalDataInitial({
+          id: clienteData.id || "",
+          idUsuario: clienteData.idUsuario || "",
+          nombres: clienteData.nombres || "",
+          apellidoPaterno: clienteData.apellidoPaterno || "",
+          apellidoMaterno: clienteData.apellidoMaterno || "",
+          telefono: clienteData.telefono || "",
+        });
       }
     }
-  }, [data]);
+  }, [data, id]);
 
   // Mostrar error si falla la carga
   useEffect(() => {
@@ -112,6 +130,14 @@ const Profile: React.FC = () => {
       setShowErrorToast(true);
     }
   }, [errorPhoto]);
+
+  // Manejar errores del 2FA
+  useEffect(() => {
+    if (error2FA) {
+      setErrorMessage(error2FA);
+      setShowErrorToast(true);
+    }
+  }, [error2FA]);
 
   const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -145,8 +171,7 @@ const Profile: React.FC = () => {
   const uploadImage = async (file: File) => {
     try {
       const formData = new FormData();
-      // El nombre del campo debe ser "Picture" según el swagger
-      formData.append("Picture", file);
+      formData.append('photo', file, file.name);
 
       const response = await postData(formData);
 
@@ -156,14 +181,11 @@ const Profile: React.FC = () => {
       } else {
         setErrorMessage(response?.mensaje || "Error al guardar la imagen");
         setShowErrorToast(true);
-        // Revertir la imagen en caso de error
         setProfileImage(null);
       }
     } catch (error) {
-      console.error("Error al subir imagen:", error);
       setErrorMessage("Error al guardar la imagen");
       setShowErrorToast(true);
-      // Revertir la imagen en caso de error
       setProfileImage(null);
     }
   };
@@ -172,17 +194,6 @@ const Profile: React.FC = () => {
     if (!isLoadingPhoto) {
       fileInputRef.current?.click();
     }
-  };
-
-  const handleRemoveImage = async () => {
-    // Aquí podrías implementar una llamada al servidor para eliminar la imagen
-    setProfileImage(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
-    setErrorMessage("Foto de perfil eliminada");
-    setShowSuccessToast(true);
   };
 
   const handleSuccess = () => {
@@ -199,10 +210,38 @@ const Profile: React.FC = () => {
     setShowSuccessToast(true);
   };
 
-  const handle2FAChange = (checked: boolean) => {
+  const handle2FAChange = async (checked: boolean) => {
+    // Actualizar el estado local inmediatamente para feedback visual
+    const previousValue = auth2FALocal;
     setAuth2FALocal(checked);
-    // Aquí implementar lógica para actualizar en el servidor
-    console.log("Actualizar 2FA a:", checked);
+
+    try {
+      const param: IGenericParam = {
+        parametro: id || ""
+      };
+
+      const response = await post2FA(param);
+
+      if (response && response.exito) {
+        setErrorMessage(
+          checked 
+            ? "Autenticación de doble factor activada exitosamente" 
+            : "Autenticación de doble factor desactivada exitosamente"
+        );
+        setShowSuccessToast(true);
+        setShowChangePass(checked);
+      } else {
+        // Revertir el cambio si falla
+        setAuth2FALocal(previousValue);
+        setErrorMessage(response?.mensaje || "Error al actualizar la configuración de 2FA");
+        setShowErrorToast(true);
+      }
+    } catch (error) {
+      // Revertir el cambio si hay error
+      setAuth2FALocal(previousValue);
+      setErrorMessage("Error al actualizar la configuración de 2FA");
+      setShowErrorToast(true);
+    }
   };
 
   const renderTooltip = (props: any) => (
@@ -250,9 +289,9 @@ const Profile: React.FC = () => {
       <ChangePasswordModal
         show={showPasswordModal}
         onHide={() => setShowPasswordModal(false)}
-        nombreUsuario={nombreUsuario || ""}
-        email={mail || ""}
+        nombreUsuario={mail || ""}
         onPasswordChanged={handlePasswordChanged}
+        onError={handleError}
       />
 
       <div className="hub-login-back profile-back-button">
@@ -317,14 +356,20 @@ const Profile: React.FC = () => {
                   delay={{ show: 250, hide: 400 }}
                   overlay={renderTooltip}
                 >
-                  <Form.Check
-                    type="switch"
-                    id="2fa-switch"
-                    checked={auth2FALocal}
-                    onChange={(e) => handle2FAChange(e.target.checked)}
-                    label="Requiere 2FA"
-                    className="text-light profile-2fa-switch"
-                  />
+                  <div className="d-flex align-items-center">
+                    <Form.Check
+                      type="switch"
+                      id="2fa-switch"
+                      checked={auth2FALocal}
+                      onChange={(e) => handle2FAChange(e.target.checked)}
+                      label="Requiere 2FA"
+                      className="text-light profile-2fa-switch"
+                      disabled={isLoading2FA}
+                    />
+                    {isLoading2FA && (
+                      <Spinner animation="border" size="sm" className="ms-2" />
+                    )}
+                  </div>
                 </OverlayTrigger>
               </div>
 
@@ -372,8 +417,12 @@ const Profile: React.FC = () => {
             </Nav>
 
             <div className="profile-tab-content-container">
-              {activeTab === "personal" && (
-                <PersonalData onSuccess={handleSuccess} onError={handleError} />
+              {activeTab === "personal" && personalDataInitial && (
+                <PersonalData 
+                  initialData={personalDataInitial}
+                  onSuccess={handleSuccess} 
+                  onError={handleError} 
+                />
               )}
               {activeTab === "shipping" && (
                 <ShippingData onSuccess={handleSuccess} onError={handleError} />

@@ -20,6 +20,7 @@ export interface IUsuarioRespuesta {
     mail : string;
     verificar2FA : boolean;
     token : string;
+    uKey: string | null;
     
 }
 
@@ -34,4 +35,10 @@ export interface IUserRS {
 export interface IRecoveryPass {
   usuario: string;
   pass: string;
+}
+
+export interface IRecoveryPassword {
+  userId: string;
+  newPassword: string;
+  oldPassword: string;
 }

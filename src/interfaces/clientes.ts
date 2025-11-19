@@ -30,6 +30,7 @@ export interface IPersonalData {
   apellidoPaterno: string;
   apellidoMaterno: string;
   telefono: string;
+  pathFoto: string;
 }
 
 export interface ISendDataPersonal {
@@ -38,6 +39,8 @@ export interface ISendDataPersonal {
   nombre: string,
   apellidoP: string,
   apellidoM: string,
-  telefono: string
+  telefono: string;
+  pathFoto: string;
+
     
 }

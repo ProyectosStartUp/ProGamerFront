@@ -36,6 +36,8 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({
 
   // Actualizar el estado cuando cambien los datos iniciales
   useEffect(() => {
+    console.log('initialData',initialData);
+    
     setPersonalData(initialData);
     
     // Verificar si ya existen datos personales (si al menos el nombre tiene valor)
@@ -134,7 +136,9 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({
         nombre: personalData.nombres,
         apellidoP: personalData.apellidoPaterno,
         apellidoM: personalData.apellidoMaterno,
-        telefono: personalData.telefono
+        telefono: personalData.telefono,
+        pathFoto:personalData.pathFoto,
+        
       };
 
       const response = await postData(dataToSend);
@@ -157,6 +161,7 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({
         <h5 className="text-white profile-section-title mb-0">Datos Personales</h5>
         {hasExistingData && !isEditMode && (
           <Button
+            id="btnEditarPersonalData"
             variant="outline-light"
             size="sm"
             onClick={handleEditClick}
@@ -248,6 +253,7 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({
           <Col md={6}>
             {hasExistingData && (
               <Button
+                id="btnCancelaEditarPersonalData"
                 variant="outline-secondary"
                 className="w-100 mb-2 mb-md-0"
                 onClick={handleCancelEdit}
@@ -259,6 +265,7 @@ const PersonalDataTab: React.FC<PersonalDataTabProps> = ({
           </Col>
           <Col md={hasExistingData ? 6 : 12}>
             <Button
+              id="btnGuardaEditarPersonalData"
               type="submit"
               className="w-100 hub-btn-gamer"
               disabled={isLoading}

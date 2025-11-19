@@ -281,6 +281,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                   style={{ backgroundColor: "#1a1a1a", color: "#fff", border: "1px solid #444" }}
                 />
                 <Button
+
                   type="button"
                   variant="link"
                   style={{
@@ -399,10 +400,16 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       </Modal.Body>
       
       <Modal.Footer className="bg-dark border-secondary">
-        <Button variant="secondary" onClick={handleClose} disabled={isLoading}>
+        <Button 
+          id="btnCancelaCambiaPass"
+          variant="secondary" 
+          onClick={handleClose} 
+          disabled={isLoading}
+          >
           Cancelar
         </Button>
         <Button 
+          id="btnGuardarCambiaPass"
           className="hub-btn-gamer" 
           onClick={handleSubmit}
           disabled={isLoading}

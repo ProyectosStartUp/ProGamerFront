@@ -1,6 +1,7 @@
 import React, { useState, useEffect, type ChangeEvent } from "react";
 import { Form, Button, Row, Col } from "react-bootstrap";
-import type { IAddressData, ValidationErrors,IColoniaData } from "../../../../interfaces/address";
+import usePostGenericHook from "../../../../hooks/accessData/usePostGenericHook";
+import type { IAddressData, ValidationErrors, IColoniaData, ISendDataAddress } from "../../../../interfaces/address";
 import type { IRespuesta } from "../../../../interfaces/Respuesta";
 import axi from "../../../../services/apiClient";
 
@@ -8,38 +9,62 @@ interface AddressFormProps {
   tipoDireccion: 1 | 2;
   usuarioId: string;
   initialData?: Partial<IAddressData>;
-  onSave: (data: IAddressData) => Promise<void>;
-  isLoading: boolean;
+  onSuccess: () => void;
+  onError: (message: string) => void;
 }
 
 const AddressForm: React.FC<AddressFormProps> = ({
   tipoDireccion,
   usuarioId,
   initialData,
-  onSave,
-  isLoading
+  onSuccess,
+  onError
 }) => {
   const [addressData, setAddressData] = useState<IAddressData>({
-    usuarioId,
-    tipoDireccion,
-    alias: initialData?.alias || "",
+    idCliente: initialData?.idCliente || usuarioId || "",
+    idDireccion: initialData?.idDireccion || "",
+    aliasDireccion: initialData?.aliasDireccion || "",
     calle: initialData?.calle || "",
     numExt: initialData?.numExt || "",
     numInt: initialData?.numInt || "",
     codigoPostal: initialData?.codigoPostal || "",
-    coloniaId: initialData?.coloniaId || "",
+    idCp: initialData?.idCp || "",
     municipioId: initialData?.municipioId || "",
-    referencias: initialData?.referencias || ""
+    referencias: initialData?.referencias || "",
+    esFiscal: tipoDireccion === 2,
   });
 
   const [colonias, setColonias] = useState<IColoniaData[]>([]);
-  const [municipioSeleccionado, setMunicipioSeleccionado] = useState<string>("");
+  const [municipioSeleccionado, setMunicipioSeleccionado] = useState<string>(initialData?.municipio || "");
+  const [estadoSeleccionado, setEstadoSeleccionado] = useState<string>(initialData?.entidadFva || "");
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [isLoadingColonias, setIsLoadingColonias] = useState<boolean>(false);
 
+  // Determinar el endpoint según si es edición o creación
+  const endpoint = initialData?.idDireccion ? "Direcciones/Actualizar" : "Direcciones/Agregar";
+
+  // Hook para guardar/actualizar dirección
+  const { postData, isLoading, error } = usePostGenericHook<ISendDataAddress, IRespuesta<any>>(
+    endpoint
+  );
+
   useEffect(() => {
-    setAddressData(prev => ({ ...prev, usuarioId }));
+    setAddressData(prev => ({ ...prev, idCliente: usuarioId }));
   }, [usuarioId]);
+
+  // Cargar colonias si hay código postal inicial (modo edición)
+  useEffect(() => {
+    if (initialData?.codigoPostal && initialData.codigoPostal.length === 5) {
+      fetchColonias(initialData.codigoPostal);
+    }
+  }, [initialData?.codigoPostal]);
+
+  // Manejar errores del hook
+  useEffect(() => {
+    if (error) {
+      onError(error);
+    }
+  }, [error, onError]);
 
   const fetchColonias = async (cp: string) => {
     if (cp.length !== 5) return;
@@ -51,13 +76,10 @@ const AddressForm: React.FC<AddressFormProps> = ({
       if (response.data.exito && response.data.data) {
         let coloniasArray: IColoniaData[] = [];
         
-        // Verificar si response.data.data es un array
         if (Array.isArray(response.data.data)) {
-          // Verificar si el primer elemento es un array (array de arrays)
           if (response.data.data.length > 0 && Array.isArray(response.data.data[0])) {
             coloniasArray = (response.data.data as any).flat() as IColoniaData[];
           } else {
-            // Es un array simple de IColoniaData
             coloniasArray = response.data.data as IColoniaData[];
           }
         }
@@ -65,30 +87,40 @@ const AddressForm: React.FC<AddressFormProps> = ({
         if (coloniasArray.length > 0) {
           setColonias(coloniasArray);
           
-          // Auto-seleccionar el municipio (todos tienen el mismo municipio)
           const primerColonia = coloniasArray[0];
           setMunicipioSeleccionado(primerColonia.municipio);
+          setEstadoSeleccionado(primerColonia.entidad);
           
-          setAddressData(prev => ({ 
-            ...prev, 
-            municipioId: primerColonia.idMunicipio.toString(),
-            coloniaId: "" // Reset colonia para que el usuario seleccione
-          }));
+          // Si es modo edición y ya tiene idCp, mantenerlo
+          if (!initialData?.idCp) {
+            setAddressData(prev => ({ 
+              ...prev, 
+              municipioId: primerColonia.idMunicipio.toString(),
+              idCp: ""
+            }));
+          } else {
+            setAddressData(prev => ({ 
+              ...prev, 
+              municipioId: primerColonia.idMunicipio.toString()
+            }));
+          }
         } else {
           setColonias([]);
           setMunicipioSeleccionado("");
+          setEstadoSeleccionado("");
           setAddressData(prev => ({ 
             ...prev, 
-            coloniaId: "",
+            idCp: "",
             municipioId: ""
           }));
         }
       } else {
         setColonias([]);
         setMunicipioSeleccionado("");
+        setEstadoSeleccionado("");
         setAddressData(prev => ({ 
           ...prev, 
-          coloniaId: "",
+          idCp: "",
           municipioId: ""
         }));
       }
@@ -96,9 +128,10 @@ const AddressForm: React.FC<AddressFormProps> = ({
       console.error('Error al obtener colonias:', error);
       setColonias([]);
       setMunicipioSeleccionado("");
+      setEstadoSeleccionado("");
       setAddressData(prev => ({ 
         ...prev, 
-        coloniaId: "",
+        idCp: "",
         municipioId: ""
       }));
     } finally {
@@ -132,14 +165,14 @@ const AddressForm: React.FC<AddressFormProps> = ({
     const cp = e.target.value;
 
     if (cp.length === 5) {
-      // Buscar colonias cuando el CP tenga 5 dígitos
       await fetchColonias(cp);
     } else {
       setColonias([]);
       setMunicipioSeleccionado("");
+      setEstadoSeleccionado("");
       setAddressData(prev => ({ 
         ...prev, 
-        coloniaId: "",
+        idCp: "",
         municipioId: ""
       }));
     }
@@ -149,8 +182,8 @@ const AddressForm: React.FC<AddressFormProps> = ({
     const errors: ValidationErrors = {};
     let isValid = true;
 
-    if (!addressData.alias.trim()) {
-      errors.alias = "El alias de la dirección es requerido";
+    if (!addressData.aliasDireccion.trim()) {
+      errors.aliasDireccion = "El alias de la dirección es requerido";
       isValid = false;
     }
 
@@ -172,8 +205,8 @@ const AddressForm: React.FC<AddressFormProps> = ({
       isValid = false;
     }
 
-    if (!addressData.coloniaId) {
-      errors.coloniaId = "La colonia es requerida";
+    if (!addressData.idCp) {
+      errors.idCp = "La colonia es requerida";
       isValid = false;
     }
 
@@ -188,14 +221,39 @@ const AddressForm: React.FC<AddressFormProps> = ({
 
   const handleSubmit = async () => {
     if (!validateData()) {
+      onError("Por favor, completa todos los campos correctamente");
       return;
     }
 
-    await onSave(addressData);
+    try {
+      const dataToSend: ISendDataAddress = {
+        idCliente: addressData.idCliente,
+        idDireccion: addressData.idDireccion || "",
+        aliasDireccion: addressData.aliasDireccion,
+        calle: addressData.calle,
+        numExt: addressData.numExt,
+        numInt: addressData.numInt,
+        idCp: parseInt(addressData.idCp.toString()),
+        referencias: addressData.referencias || "",
+        esFiscal: false
+      };
+
+      const response = await postData(dataToSend);
+
+      if (response && response.exito) {
+        onSuccess();
+      } else {
+        onError(response?.mensaje || "Error al guardar la dirección");
+      }
+    } catch (error) {
+      onError("Error al guardar la dirección");
+    }
   };
 
   const isShippingAddress = tipoDireccion === 1;
-  const buttonText = isShippingAddress ? "Guardar Datos de Envío" : "Guardar Dirección Fiscal";
+  const buttonText = initialData?.idDireccion 
+    ? (isShippingAddress ? "Actualizar Datos de Envío" : "Actualizar Dirección Fiscal")
+    : (isShippingAddress ? "Guardar Datos de Envío" : "Guardar Dirección Fiscal");
 
   return (
     <div className="mt-4">
@@ -204,13 +262,14 @@ const AddressForm: React.FC<AddressFormProps> = ({
         <Form.Control
           type="text"
           placeholder="Ej: Casa, Oficina, Casa de mamá..."
-          value={addressData.alias}
+          value={addressData.aliasDireccion}
           onChange={handleInputChange}
-          name="alias"
-          isInvalid={!!validationErrors.alias}
+          name="aliasDireccion"
+          isInvalid={!!validationErrors.aliasDireccion}
+          disabled={isLoading}
         />
         <Form.Control.Feedback type="invalid">
-          {validationErrors.alias}
+          {validationErrors.aliasDireccion}
         </Form.Control.Feedback>
         <Form.Text className="text-light profile-form-text">
           Agrega un nombre para identificar fácilmente esta dirección
@@ -226,6 +285,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
           onChange={handleInputChange}
           name="calle"
           isInvalid={!!validationErrors.calle}
+          disabled={isLoading}
         />
         <Form.Control.Feedback type="invalid">
           {validationErrors.calle}
@@ -243,6 +303,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
               onChange={handleInputChange}
               name="numExt"
               isInvalid={!!validationErrors.numExt}
+              disabled={isLoading}
             />
             <Form.Control.Feedback type="invalid">
               {validationErrors.numExt}
@@ -259,6 +320,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
               value={addressData.numInt}
               onChange={handleInputChange}
               name="numInt"
+              disabled={isLoading}
             />
           </Form.Group>
         </Col>
@@ -276,6 +338,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
               name="codigoPostal"
               maxLength={5}
               isInvalid={!!validationErrors.codigoPostal}
+              disabled={isLoading}
             />
             <Form.Control.Feedback type="invalid">
               {validationErrors.codigoPostal}
@@ -293,11 +356,11 @@ const AddressForm: React.FC<AddressFormProps> = ({
           <Form.Group className="mb-3" controlId={`formColonia${tipoDireccion}`}>
             <Form.Label>Colonia *</Form.Label>
             <Form.Select
-              value={addressData.coloniaId}
+              value={addressData.idCp}
               onChange={handleInputChange}
-              name="coloniaId"
-              disabled={colonias.length === 0 || isLoadingColonias}
-              isInvalid={!!validationErrors.coloniaId}
+              name="idCp"
+              disabled={colonias.length === 0 || isLoadingColonias || isLoading}
+              isInvalid={!!validationErrors.idCp}
             >
               <option value="">Selecciona una colonia</option>
               {colonias.map((colonia) => (
@@ -307,7 +370,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
               ))}
             </Form.Select>
             <Form.Control.Feedback type="invalid">
-              {validationErrors.coloniaId}
+              {validationErrors.idCp}
             </Form.Control.Feedback>
             {addressData.codigoPostal.length === 5 && colonias.length === 0 && !isLoadingColonias && (
               <Form.Text className="text-light profile-form-text">
@@ -318,23 +381,39 @@ const AddressForm: React.FC<AddressFormProps> = ({
         </Col>
       </Row>
 
-      <Form.Group className="mb-3" controlId={`formMunicipio${tipoDireccion}`}>
-        <Form.Label>Municipio *</Form.Label>
-        <Form.Control
-          type="text"
-          value={municipioSeleccionado}
-          readOnly
-          disabled
-          placeholder="Se auto-completará con el código postal"
-          isInvalid={!!validationErrors.municipioId}
-        />
-        <Form.Control.Feedback type="invalid">
-          {validationErrors.municipioId}
-        </Form.Control.Feedback>
-        <Form.Text className="text-light profile-form-text">
-          El municipio se selecciona automáticamente al ingresar el código postal
-        </Form.Text>
-      </Form.Group>
+      <Row>
+        <Col md={6}>
+          <Form.Group className="mb-3" controlId={`formMunicipio${tipoDireccion}`}>
+            <Form.Label>Municipio</Form.Label>
+            <Form.Control
+              type="text"
+              value={municipioSeleccionado}
+              readOnly
+              disabled
+              placeholder="Se auto-completará con el código postal"
+            />
+            <Form.Text className="text-light profile-form-text">
+              Se selecciona automáticamente con el código postal
+            </Form.Text>
+          </Form.Group>
+        </Col>
+
+        <Col md={6}>
+          <Form.Group className="mb-3" controlId={`formEstado${tipoDireccion}`}>
+            <Form.Label>Estado</Form.Label>
+            <Form.Control
+              type="text"
+              value={estadoSeleccionado}
+              readOnly
+              disabled
+              placeholder="Se auto-completará con el código postal"
+            />
+            <Form.Text className="text-light profile-form-text">
+              Se selecciona automáticamente con el código postal
+            </Form.Text>
+          </Form.Group>
+        </Col>
+      </Row>
 
       {isShippingAddress && (
         <Form.Group className="mb-4" controlId={`formReferencias${tipoDireccion}`}>
@@ -347,6 +426,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
             onChange={handleInputChange}
             name="referencias"
             className="profile-textarea"
+            disabled={isLoading}
           />
           <Form.Text className="text-light profile-form-text">
             Ejemplo: Entre las calles X y Y, cerca del parque...
@@ -355,6 +435,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
       )}
 
       <Button
+        id="btnGuardaDireccion"
         type="submit"
         className="w-100 hub-btn-gamer"
         disabled={isLoading}

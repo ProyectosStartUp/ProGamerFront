@@ -6,24 +6,61 @@ export interface IComboItem {
 
 export interface IFiscalData {
   id?: string;
-  usuarioId: string;
+  idCliente: string;
   razonSocial: string;
   rfc: string;
-  correoFactura: string;
-  regimenFiscalId: string;
-  cpFiscal: string;
-  usoCfdiId: string;
-  formaPagoId: string;
-  metodoPagoId: string;
+  correoFacturacion: string;
+  idRegimenFiscal: string;
+  codigoPostal: string;
+  idUsoCfdi: string;
+  idFormaPago: string;
+  idMetodoPago: string;
 }
 
 export interface ValidationErrors {
   razonSocial?: string;
   rfc?: string;
-  correoFactura?: string;
-  regimenFiscalId?: string;
-  cpFiscal?: string;
-  usoCfdiId?: string;
-  formaPagoId?: string;
-  metodoPagoId?: string;
+  correoFacturacion?: string;
+  idRegimenFiscal?: string;
+  codigoPostal?: string;
+  idUsoCfdi?: string;
+  idFormaPago?: string;
+  idMetodoPago?: string;
+}
+
+
+
+export interface IDataBilling {
+  idCliente: string;
+  idDatoFacturacion: string;
+  razonSocial: string;
+  rfc: string;
+  correo: string;
+  cpFiscal: string;
+  idRegimen: string;
+  regimen: string;
+  idUsoCfdi: string;
+  usoCfdi: string;
+  idFormaPago: string;
+  formaPago: string;
+  idMetodoPago: string;
+  metodoPago: string;
+}
+
+
+export interface IFiscalDataResponse {
+  idCliente: string;
+  idDatoFacturacion: string;
+  razonSocial: string;
+  rfc: string;
+  correo: string;
+  cpFiscal: string;
+  idRegimen: string;
+  regimen: string;
+  idUsoCfdi: string | null;
+  usoCfdi: string | null;
+  idFormaPago: string;
+  formaPago: string;
+  idMetodoPago: string;
+  metodoPago: string;
 }

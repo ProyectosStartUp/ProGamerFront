@@ -100,9 +100,11 @@ const Profile: React.FC = () => {
           setAuth2FALocal(clienteData.auth2FA);
         }
 
-        setShowChangePass(clienteData.auth2FA);
+        setShowChangePass(clienteData.esRedSocial);
 
         // Preparar datos personales para el componente hijo
+        console.log('phptp',clienteData.pathFoto);
+        
         setPersonalDataInitial({
           id: clienteData.id || "",
           idUsuario: clienteData.idUsuario || "",
@@ -110,6 +112,7 @@ const Profile: React.FC = () => {
           apellidoPaterno: clienteData.apellidoPaterno || "",
           apellidoMaterno: clienteData.apellidoMaterno || "",
           telefono: clienteData.telefono || "",
+          pathFoto: clienteData.pathFoto || "",
         });
       }
     }
@@ -229,7 +232,7 @@ const Profile: React.FC = () => {
             : "Autenticación de doble factor desactivada exitosamente"
         );
         setShowSuccessToast(true);
-        setShowChangePass(checked);
+        // setShowChangePass(checked);
       } else {
         // Revertir el cambio si falla
         setAuth2FALocal(previousValue);
@@ -322,6 +325,7 @@ const Profile: React.FC = () => {
               </div>
 
               <Button
+                id="btnFotoPerfil"
                 variant="light"
                 onClick={handleClickUpload}
                 className="profile-camera-button"
@@ -380,10 +384,11 @@ const Profile: React.FC = () => {
               </div>
 
               <Button
+                id="btnCambiarPassword"
                 variant="link"
                 className="text-light p-0 profile-change-password"
                 onClick={() => setShowPasswordModal(true)}
-                hidden={!showChangePass}
+                hidden={showChangePass}
               >
                 Cambiar contraseña
               </Button>
@@ -425,10 +430,18 @@ const Profile: React.FC = () => {
                 />
               )}
               {activeTab === "shipping" && (
-                <ShippingData onSuccess={handleSuccess} onError={handleError} />
+                <ShippingData 
+                  idCliente={idCliente}
+                  onSuccess={handleSuccess} 
+                  onError={handleError} 
+                />
               )}
               {activeTab === "billing" && (
-                <BillingData onSuccess={handleSuccess} onError={handleError} />
+                <BillingData 
+                  idCliente={idCliente}
+                  onSuccess={handleSuccess} 
+                  onError={handleError} 
+                />
               )}
             </div>
           </Col>

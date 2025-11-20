@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Container, Row, Col, Card, Button, Modal, Badge, Spinner } from "react-bootstrap";
 import { Trash2, Edit2, MapPin, Plus, AlertTriangle } from "lucide-react";
 import AddressForm from "./AddressForm";
@@ -10,7 +10,7 @@ import "./styles/AddressManager.css";
 
 interface AddressManagerProps {
   usuarioId: string;
-  tipoDireccion: 1 | 2; // 1 = Envío, 2 = Facturación
+  tipoDireccion: 1 | 2;
   onSuccess: () => void;
   onError: (message: string) => void;
 }
@@ -21,27 +21,24 @@ const AddressManager: React.FC<AddressManagerProps> = ({
   onSuccess,
   onError
 }) => {
-  // Estado para las direcciones guardadas
   const [addresses, setAddresses] = useState<IAddressData[]>([]);
-  
-  // Estado para el modal
   const [showModal, setShowModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [addressToDelete, setAddressToDelete] = useState<IAddressData | null>(null);
-  
-  // Estado para edición
   const [editingAddress, setEditingAddress] = useState<IAddressData | null>(null);
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
 
-  // Hook para cargar direcciones
+  // Refs para control de peticiones
+  const isMountedRef = useRef(true);
+  const isLoadingRef = useRef(false);
+
   const { 
     postData: fetchAddresses, 
-    isLoading: isLoadingAddresses, 
     error: errorAddresses 
   } = usePostGenericHook<IGenericParam, IRespuesta<IAddressData[]>>(
     "Direcciones/ObtenerDireccionesPorIdCte"
   );
 
-  // Hook para eliminar dirección
   const {
     postData: deleteAddress,
     isLoading: isDeleting,
@@ -53,29 +50,51 @@ const AddressManager: React.FC<AddressManagerProps> = ({
   const isShippingAddress = tipoDireccion === 1;
   const titleText = isShippingAddress ? "Direcciones de Envío" : "Direcciones Fiscales";
 
-  // Cargar direcciones al montar el componente o cuando cambie el usuarioId
+  // Cleanup al desmontar
   useEffect(() => {
-    if (usuarioId) {
+    isMountedRef.current = true;
+    
+    return () => {
+      isMountedRef.current = false;
+      isLoadingRef.current = false;
+    };
+  }, []);
+
+  // Cargar direcciones solo cuando cambie usuarioId o tipoDireccion
+  useEffect(() => {
+    if (usuarioId && isMountedRef.current) {
       loadAddresses();
     }
-  }, [usuarioId]);
+    
+    // Cleanup al cambiar de pestaña
+    return () => {
+      setAddresses([]);
+    };
+  }, [usuarioId, tipoDireccion]);
 
-  // Manejar errores de carga
+  // Manejar errores
   useEffect(() => {
-    if (errorAddresses) {
+    if (errorAddresses && isMountedRef.current) {
       onError(errorAddresses);
     }
-  }, [errorAddresses, onError]);
+  }, [errorAddresses]);
 
-  // Manejar errores de eliminación
   useEffect(() => {
-    if (errorDelete) {
+    if (errorDelete && isMountedRef.current) {
       onError(errorDelete);
     }
-  }, [errorDelete, onError]);
+  }, [errorDelete]);
 
-  // Función para cargar direcciones
+  // Función para cargar direcciones con protección contra llamadas múltiples
   const loadAddresses = async () => {
+    // Prevenir llamadas simultáneas
+    if (isLoadingRef.current || !isMountedRef.current) {
+      return;
+    }
+
+    isLoadingRef.current = true;
+    setIsLoadingAddresses(true);
+
     try {
       const param: IGenericParam = {
         parametro: usuarioId
@@ -83,18 +102,20 @@ const AddressManager: React.FC<AddressManagerProps> = ({
 
       const response = await fetchAddresses(param);
 
+      // Verificar si el componente sigue montado
+      if (!isMountedRef.current) {
+        return;
+      }
+
       if (response && response.exito && response.data) {
-        // El data puede venir como array directo o dentro de un objeto
         let addressesArray: any[] = [];
         
         if (Array.isArray(response.data)) {
           addressesArray = response.data;
         } else if (response.data && typeof response.data === 'object') {
-          // Si data es un objeto que contiene el array
           addressesArray = (response.data as any).data || [];
         }
 
-        // Filtrar direcciones según el tipo
         const filteredAddresses = addressesArray.filter(
           (addr: any) => addr.esFiscal === (tipoDireccion === 2)
         );
@@ -105,45 +126,47 @@ const AddressManager: React.FC<AddressManagerProps> = ({
       }
     } catch (error) {
       console.error("Error al cargar direcciones:", error);
-      setAddresses([]);
+      if (isMountedRef.current) {
+        setAddresses([]);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        isLoadingRef.current = false;
+        setIsLoadingAddresses(false);
+      }
     }
   };
 
-  // Abrir modal para agregar nueva dirección
   const handleAddNew = () => {
     setEditingAddress(null);
     setShowModal(true);
   };
 
-  // Abrir modal para editar dirección existente
   const handleEdit = (address: IAddressData) => {
     setEditingAddress(address);
     setShowModal(true);
   };
 
-  // Cerrar modal
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingAddress(null);
   };
 
-  // Manejar éxito después de guardar
   const handleSaveSuccess = () => {
     handleCloseModal();
     onSuccess();
-    // Recargar la lista de direcciones
-    loadAddresses();
+    if (isMountedRef.current) {
+      loadAddresses();
+    }
   };
 
-  // Abrir modal de confirmación de eliminación
   const handleDeleteClick = (address: IAddressData) => {
     setAddressToDelete(address);
     setShowDeleteModal(true);
   };
 
-  // Confirmar eliminación
   const handleConfirmDelete = async () => {
-    if (!addressToDelete) return;
+    if (!addressToDelete || !isMountedRef.current) return;
 
     try {
       const param: IGenericParam = {
@@ -152,22 +175,24 @@ const AddressManager: React.FC<AddressManagerProps> = ({
 
       const response = await deleteAddress(param);
 
+      if (!isMountedRef.current) return;
+
       if (response && response.exito) {
         onSuccess();
         setShowDeleteModal(false);
         setAddressToDelete(null);
-        // Recargar la lista de direcciones
         loadAddresses();
       } else {
         onError(response?.mensaje || "Error al eliminar la dirección");
       }
     } catch (error) {
       console.error("Error al eliminar dirección:", error);
-      onError("Error al eliminar la dirección");
+      if (isMountedRef.current) {
+        onError("Error al eliminar la dirección");
+      }
     }
   };
 
-  // Mostrar loader mientras carga
   if (isLoadingAddresses) {
     return (
       <Container fluid className="p-0">
@@ -182,7 +207,6 @@ const AddressManager: React.FC<AddressManagerProps> = ({
 
   return (
     <Container fluid className="p-0">
-      {/* Header con título y botón */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h5 className="text-white profile-section-title mb-0">
           <MapPin className="me-2" size={20} />
@@ -198,7 +222,6 @@ const AddressManager: React.FC<AddressManagerProps> = ({
         </Button>
       </div>
 
-      {/* Listado de direcciones */}
       {addresses.length === 0 ? (
         <Card className="bg-dark text-white border-secondary">
           <Card.Body className="text-center py-5">
@@ -226,7 +249,7 @@ const AddressManager: React.FC<AddressManagerProps> = ({
                     </div>
                     <div className="d-flex gap-2">
                       <Button
-                      id="btnEditarDireccion"
+                        id="btnEditarDireccion"
                         variant="outline-light"
                         size="sm"
                         className="btn-icon-action"
@@ -284,7 +307,6 @@ const AddressManager: React.FC<AddressManagerProps> = ({
         </Row>
       )}
 
-      {/* Modal con el formulario */}
       <Modal
         show={showModal}
         onHide={handleCloseModal}
@@ -315,7 +337,6 @@ const AddressManager: React.FC<AddressManagerProps> = ({
         </Modal.Body>
       </Modal>
 
-      {/* Modal de confirmación de eliminación */}
       <Modal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
@@ -333,7 +354,6 @@ const AddressManager: React.FC<AddressManagerProps> = ({
             ¿Estás seguro de que deseas eliminar la dirección{" "}
             <strong>{addressToDelete?.aliasDireccion}</strong>?
           </p>
-          
         </Modal.Body>
         <Modal.Footer className="bg-dark border-secondary">
           <Button

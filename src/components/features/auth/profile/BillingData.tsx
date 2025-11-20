@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Container, Row, Col, Card, Button, Spinner } from "react-bootstrap";
 import { Receipt, Plus } from "lucide-react";
 import useGetGenericHook from "../../../../hooks/accessData/useGetGenericHook";
@@ -20,29 +20,28 @@ interface BillingDataTabProps {
 }
 
 const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onError }) => {
-  // Hook para obtener los combos
   const {
     data: combosData,
     isLoading: isLoadingCombos,
   } = useGetGenericHook("DatosFacturacionClientes/GetCombos");
 
-  // Listado de registros fiscales
   const [fiscales, setFiscales] = useState<IFiscalDataResponse[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(false);
-
-  // Estado del modal
   const [showModal, setShowModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [billingToDelete, setBillingToDelete] = useState<IFiscalDataResponse | null>(null);
   const [editingBilling, setEditingBilling] = useState<IFiscalDataResponse | null>(null);
 
-  // Estados de los combos
   const [formasPago, setFormasPago] = useState<IComboItem[]>([]);
   const [metodosPago, setMetodosPago] = useState<IComboItem[]>([]);
   const [regimenesFiscales, setRegimenesFiscales] = useState<IComboItem[]>([]);
   const [usosCfdi, setUsosCfdi] = useState<IComboItem[]>([]);
 
-  // Hook para eliminar datos de facturación
+  // Refs para control de peticiones
+  const isMountedRef = useRef(true);
+  const isLoadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const {
     postData: deleteBilling,
     isLoading: isDeleting,
@@ -51,53 +50,45 @@ const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onEr
     "DatosFacturacionClientes/Eliminar"
   );
 
-  // Función para cargar el listado de datos de facturación
-  const loadBillingData = async () => {
-    setIsLoadingList(true);
-    try {
-      const response = await axi.get<IRespuesta<IFiscalDataResponse[]>>(
-        `DatosFacturacionClientes/ObtenerPorIdCte/${idCliente}`
-      );
-
-      if (response.data.exito && response.data.data) {
-        let dataArray: IFiscalDataResponse[] = [];
-        
-        if (Array.isArray(response.data.data)) {
-          dataArray = response.data.data as IFiscalDataResponse[];
-        } else {
-          dataArray = [response.data.data] as IFiscalDataResponse[];
-        }
-        
-        setFiscales(dataArray);
-      } else {
-        setFiscales([]);
-      }
-    } catch (error) {
-      console.error("Error al cargar datos de facturación:", error);
-      setFiscales([]);
-      onError("Error al cargar los datos de facturación");
-    } finally {
-      setIsLoadingList(false);
-    }
-  };
-
-  // Cargar listado al montar el componente
+  // Cleanup al desmontar
   useEffect(() => {
-    if (idCliente) {
+    isMountedRef.current = true;
+    
+    return () => {
+      isMountedRef.current = false;
+      isLoadingRef.current = false;
+      // Cancelar peticiones pendientes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Cargar listado cuando cambie idCliente
+  useEffect(() => {
+    if (idCliente && isMountedRef.current) {
       loadBillingData();
     }
+    
+    // Cleanup al cambiar de pestaña
+    return () => {
+      setFiscales([]);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [idCliente]);
 
-  // Manejar errores del hook de eliminación
+  // Manejar errores
   useEffect(() => {
-    if (errorDeleting) {
+    if (errorDeleting && isMountedRef.current) {
       onError(errorDeleting);
     }
-  }, [errorDeleting, onError]);
+  }, [errorDeleting]);
 
-  // Procesar datos de combos cuando se cargan
+  // Procesar combos
   useEffect(() => {
-    if (combosData) {
+    if (combosData && isMountedRef.current) {
       const response = combosData as IRespuesta<IComboItem[][]>;
 
       if (response.exito && response.data) {
@@ -127,40 +118,98 @@ const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onEr
     }
   }, [combosData]);
 
-  // Abrir modal para nuevo registro
+  // Función para cargar datos con protección contra llamadas múltiples
+  const loadBillingData = async () => {
+    // Prevenir llamadas simultáneas
+    if (isLoadingRef.current || !isMountedRef.current) {
+      return;
+    }
+
+    // Cancelar petición anterior si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Crear nuevo AbortController
+    abortControllerRef.current = new AbortController();
+
+    isLoadingRef.current = true;
+    setIsLoadingList(true);
+
+    try {
+      const response = await axi.get<IRespuesta<IFiscalDataResponse[]>>(
+        `DatosFacturacionClientes/ObtenerPorIdCte/${idCliente}`,
+        { signal: abortControllerRef.current.signal }
+      );
+
+      // Verificar si el componente sigue montado
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      if (response.data.exito && response.data.data) {
+        let dataArray: IFiscalDataResponse[] = [];
+        
+        if (Array.isArray(response.data.data)) {
+          dataArray = response.data.data as IFiscalDataResponse[];
+        } else {
+          dataArray = [response.data.data] as IFiscalDataResponse[];
+        }
+        
+        setFiscales(dataArray);
+      } else {
+        setFiscales([]);
+      }
+    } catch (error: any) {
+      // No mostrar error si fue cancelación
+      if (error.name === 'CanceledError' || error.message === 'canceled') {
+        console.log('Petición cancelada correctamente');
+        return;
+      }
+      
+      console.error("Error al cargar datos de facturación:", error);
+      if (isMountedRef.current) {
+        setFiscales([]);
+        onError("Error al cargar los datos de facturación");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        isLoadingRef.current = false;
+        setIsLoadingList(false);
+      }
+    }
+  };
+
   const handleAddNew = () => {
     setEditingBilling(null);
     setShowModal(true);
   };
 
-  // Abrir modal para editar
   const handleEdit = (billing: IFiscalDataResponse) => {
     setEditingBilling(billing);
     setShowModal(true);
   };
 
-  // Cerrar modal de formulario
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingBilling(null);
   };
 
-  // Manejar éxito después de guardar
   const handleSaveSuccess = () => {
     handleCloseModal();
     onSuccess();
-    loadBillingData();
+    if (isMountedRef.current) {
+      loadBillingData();
+    }
   };
 
-  // Abrir modal de confirmación de eliminación
   const handleDeleteClick = (billing: IFiscalDataResponse) => {
     setBillingToDelete(billing);
     setShowDeleteModal(true);
   };
 
-  // Confirmar eliminación
   const handleConfirmDelete = async () => {
-    if (!billingToDelete) return;
+    if (!billingToDelete || !isMountedRef.current) return;
 
     try {
       const param: IGenericParam = {
@@ -168,6 +217,8 @@ const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onEr
       };
 
       const response = await deleteBilling(param);
+
+      if (!isMountedRef.current) return;
 
       if (response && response.exito) {
         onSuccess();
@@ -179,7 +230,9 @@ const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onEr
       }
     } catch (error) {
       console.error("Error al eliminar datos de facturación:", error);
-      onError("Error al eliminar los datos de facturación");
+      if (isMountedRef.current) {
+        onError("Error al eliminar los datos de facturación");
+      }
     }
   };
 
@@ -194,7 +247,6 @@ const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onEr
 
   return (
     <Container fluid className="p-0" style={{ marginTop: "15px" }}>
-      {/* Header y botón */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h5 className="text-white profile-section-title mb-0">
           <Receipt className="me-2" size={20} />
@@ -204,13 +256,12 @@ const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onEr
           id="btnAgregarDataBilling"
           className="hub-btn-gamer" 
           onClick={handleAddNew}
-          >
+        >
           <Plus size={18} className="me-2" />
           Agregar Datos
         </Button>
       </div>
 
-      {/* Listado o vacío */}
       {fiscales.length === 0 ? (
         <Card className="bg-dark text-white border-secondary">
           <Card.Body className="text-center py-5">
@@ -233,7 +284,6 @@ const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onEr
         </Row>
       )}
 
-      {/* Modal con formulario */}
       <BillingFormModal
         show={showModal}
         onHide={handleCloseModal}
@@ -247,7 +297,6 @@ const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onEr
         onError={onError}
       />
 
-      {/* Modal de confirmación de eliminación */}
       <BillingDeleteModal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}

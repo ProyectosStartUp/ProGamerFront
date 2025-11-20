@@ -1,0 +1,130 @@
+/* Logueado.css */
+
+/* Contenedor del dropdown */
+.user-dropdown {
+  position: relative;
+}
+
+/* Toggle del dropdown */
+.user-dropdown .dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  padding: 0.5rem 0.75rem;
+}
+
+.user-dropdown .dropdown-toggle:hover {
+  opacity: 0.8;
+}
+
+/* Icono de usuario */
+.user-icon {
+  color: #fff;
+  flex-shrink: 0;
+  margin-right: 0.25rem;
+}
+
+/* Nombre de usuario */
+.user-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  padding-left: 0.25rem;
+}
+
+/* Menú desplegable */
+.user-dropdown-menu {
+  min-width: 200px;
+  padding: 0.5rem 0;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  margin-top: 0.5rem;
+  
+  /* Ajustar posición hacia la izquierda */
+  transform: translateX(-20px);
+}
+
+/* Items del menú */
+.dropdown-item-custom {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  color: #e0e0e0;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  gap: 0.75rem; /* Aumentado de 0.5rem a 0.75rem - mismo que el toggle */
+}
+
+.dropdown-item-custom:hover {
+  background-color: #2a2a2a;
+  color: #00d4ff;
+}
+
+.dropdown-item-custom svg {
+  color: #888;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+  margin-right: 0.25rem; /* Añadido margen adicional igual que el icono principal */
+}
+
+.dropdown-item-custom span {
+  padding-left: 0.25rem; /* Añadido padding igual que el nombre de usuario */
+}
+
+.dropdown-item-custom:hover svg {
+  color: #00d4ff;
+}
+
+/* Item de cerrar sesión */
+.dropdown-item-logout:hover {
+  background-color: #2a1a1a;
+  color: #ff4444;
+}
+
+.dropdown-item-logout:hover svg {
+  color: #ff4444;
+}
+
+/* Divisor */
+.user-dropdown-menu .dropdown-divider {
+  border-top-color: #333;
+  margin: 0.25rem 0;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+  .user-name {
+    max-width: 120px;
+  }
+  
+  .user-dropdown-menu {
+    transform: translateX(-10px);
+  }
+}
+
+@media (max-width: 575px) {
+  .user-dropdown {
+    width: 100%;
+  }
+  
+  .user-dropdown .dropdown-toggle {
+    justify-content: center;
+    width: 100%;
+    padding: 0.75rem;
+    gap: 1rem;
+  }
+  
+  .user-dropdown-menu {
+    width: 100%;
+    transform: translateX(0);
+  }
+  
+  .dropdown-item-custom {
+    gap: 1rem; /* Mayor gap en móvil para consistencia */
+  }
+}

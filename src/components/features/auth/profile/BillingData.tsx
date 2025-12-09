@@ -1,374 +1,309 @@
-import React, { useState, type ChangeEvent } from "react";
-import { Container, Row, Col, Card, Button, Modal, Badge, Form } from "react-bootstrap";
-import { Trash2, Edit2, MapPin, Plus } from "lucide-react";
-import { useAuthStore } from "../../../../store/useAuthStore";
+import React, { useState, useEffect, useRef } from "react";
+import { Container, Row, Col, Card, Button, Spinner } from "react-bootstrap";
+import { Receipt, Plus } from "lucide-react";
+import useGetGenericHook from "../../../../hooks/accessData/useGetGenericHook";
+import usePostGenericHook from "../../../../hooks/accessData/usePostGenericHook";
+import axi from "../../../../services/apiClient";
+import BillingCard from "./BillingCard";
+import BillingFormModal from "./BillingFormModal";
+import BillingDeleteModal from "./BillingDeleteModal";
+import type { IRespuesta } from "../../../../interfaces/Respuesta";
+import type { IComboItem, IFiscalDataResponse } from "../../../../interfaces/billing";
+import type { IGenericParam } from "../../../../interfaces/parametros";
 import "./styles/AddressManager.css";
 import "./styles/Profile.css";
 
-interface ValidationErrors {
-  rfc?: string;
-  razonSocial?: string;
-  correoFactura?: string;
-  regimenFiscal?: string;
-  cpFiscal?: string;
-  usoCfdi?: string;
-  formaPago?: string;
-}
-
-interface IFiscalData {
-  razonSocial: string;
-  rfc: string;
-  correoFactura: string;
-  regimenFiscal: string;
-  cpFiscal: string;
-  usoCfdi: string;
-  formaPago: string;
-}
-
 interface BillingDataTabProps {
+  idCliente: string;
   onSuccess: () => void;
   onError: (message: string) => void;
 }
 
-const BillingData: React.FC<BillingDataTabProps> = ({ onSuccess, onError }) => {
-  const { nombreUsuario } = useAuthStore();
+const BillingData: React.FC<BillingDataTabProps> = ({ idCliente, onSuccess, onError }) => {
+  const {
+    data: combosData,
+    isLoading: isLoadingCombos,
+  } = useGetGenericHook("DatosFacturacionClientes/GetCombos");
 
-  // Listado de registros fiscales (local, simulado)
-  const [fiscales, setFiscales] = useState<IFiscalData[]>([]);
-
-  // Estado del modal
+  const [fiscales, setFiscales] = useState<IFiscalDataResponse[]>([]);
+  const [isLoadingList, setIsLoadingList] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [billingToDelete, setBillingToDelete] = useState<IFiscalDataResponse | null>(null);
+  const [editingBilling, setEditingBilling] = useState<IFiscalDataResponse | null>(null);
 
-  // Índice en edición
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [formasPago, setFormasPago] = useState<IComboItem[]>([]);
+  const [metodosPago, setMetodosPago] = useState<IComboItem[]>([]);
+  const [regimenesFiscales, setRegimenesFiscales] = useState<IComboItem[]>([]);
+  const [usosCfdi, setUsosCfdi] = useState<IComboItem[]>([]);
 
-  // Campos fiscales
-  const [razonSocial, setRazonSocial] = useState("");
-  const [rfc, setRfc] = useState("");
-  const [correoFactura, setCorreoFactura] = useState("");
-  const [regimenFiscal, setRegimenFiscal] = useState("");
-  const [cpFiscal, setCpFiscal] = useState("");
-  const [usoCfdi, setUsoCfdi] = useState("");
-  const [formaPago, setFormaPago] = useState("");
+  // Refs para control de peticiones
+  const isMountedRef = useRef(true);
+  const isLoadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const {
+    postData: deleteBilling,
+    isLoading: isDeleting,
+    error: errorDeleting,
+  } = usePostGenericHook<IGenericParam, IRespuesta<any>>(
+    "DatosFacturacionClientes/Eliminar"
+  );
 
-  const validarRFC = (rfcValue: string): boolean => {
-    const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
-    return rfcRegex.test(rfcValue);
+  // Cleanup al desmontar
+  useEffect(() => {
+    isMountedRef.current = true;
+    
+    return () => {
+      isMountedRef.current = false;
+      isLoadingRef.current = false;
+      // Cancelar peticiones pendientes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Cargar listado cuando cambie idCliente
+  useEffect(() => {
+    if (idCliente && isMountedRef.current) {
+      loadBillingData();
+    }
+    
+    // Cleanup al cambiar de pestaña
+    return () => {
+      setFiscales([]);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [idCliente]);
+
+  // Manejar errores
+  useEffect(() => {
+    if (errorDeleting && isMountedRef.current) {
+      onError(errorDeleting);
+    }
+  }, [errorDeleting]);
+
+  // Procesar combos
+  useEffect(() => {
+    if (combosData && isMountedRef.current) {
+      const response = combosData as IRespuesta<IComboItem[][]>;
+
+      if (response.exito && response.data) {
+        response.data.forEach((item) => {
+          const comboArray = item as IComboItem[];
+          
+          if (comboArray.length > 0) {
+            const tipoCombo = comboArray[0].combo;
+
+            switch (tipoCombo) {
+              case "FormasPago":
+                setFormasPago(comboArray);
+                break;
+              case "MetodosPago":
+                setMetodosPago(comboArray);
+                break;
+              case "RegimenFiscal":
+                setRegimenesFiscales(comboArray);
+                break;
+              case "UsoCfdi":
+                setUsosCfdi(comboArray);
+                break;
+            }
+          }
+        });
+      }
+    }
+  }, [combosData]);
+
+  // Función para cargar datos con protección contra llamadas múltiples
+  const loadBillingData = async () => {
+    // Prevenir llamadas simultáneas
+    if (isLoadingRef.current || !isMountedRef.current) {
+      return;
+    }
+
+    // Cancelar petición anterior si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Crear nuevo AbortController
+    abortControllerRef.current = new AbortController();
+
+    isLoadingRef.current = true;
+    setIsLoadingList(true);
+
+    try {
+      const response = await axi.get<IRespuesta<IFiscalDataResponse[]>>(
+        `DatosFacturacionClientes/ObtenerPorIdCte/${idCliente}`,
+        { signal: abortControllerRef.current.signal }
+      );
+
+      // Verificar si el componente sigue montado
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      if (response.data.exito && response.data.data) {
+        let dataArray: IFiscalDataResponse[] = [];
+        
+        if (Array.isArray(response.data.data)) {
+          dataArray = response.data.data as IFiscalDataResponse[];
+        } else {
+          dataArray = [response.data.data] as IFiscalDataResponse[];
+        }
+        
+        setFiscales(dataArray);
+      } else {
+        setFiscales([]);
+      }
+    } catch (error: any) {
+      // No mostrar error si fue cancelación
+      if (error.name === 'CanceledError' || error.message === 'canceled') {
+        console.log('Petición cancelada correctamente');
+        return;
+      }
+      
+      console.error("Error al cargar datos de facturación:", error);
+      if (isMountedRef.current) {
+        setFiscales([]);
+        onError("Error al cargar los datos de facturación");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        isLoadingRef.current = false;
+        setIsLoadingList(false);
+      }
+    }
   };
 
-  const validarCorreo = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  const handleRfcChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const rfcValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    if (rfcValue.length <= 13) setRfc(rfcValue);
-    if (validationErrors.rfc) setValidationErrors(prev => ({ ...prev, rfc: undefined }));
-  };
-
-  const handleCpChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, "");
-    if (value.length <= 5) setCpFiscal(value);
-    if (validationErrors.cpFiscal) setValidationErrors(prev => ({ ...prev, cpFiscal: undefined }));
-  };
-
-  const resetFields = () => {
-    setRazonSocial("");
-    setRfc("");
-    setCorreoFactura("");
-    setRegimenFiscal("");
-    setCpFiscal("");
-    setUsoCfdi("");
-    setFormaPago("");
-    setValidationErrors({});
-  };
-
-  // Abrir modal para nuevo registro
   const handleAddNew = () => {
-    setEditingIndex(null);
-    resetFields();
+    setEditingBilling(null);
     setShowModal(true);
   };
 
-  // Abrir modal para editar
-  const handleEdit = (index: number) => {
-    const item = fiscales[index];
-    setEditingIndex(index);
-    setRazonSocial(item.razonSocial);
-    setRfc(item.rfc);
-    setCorreoFactura(item.correoFactura);
-    setRegimenFiscal(item.regimenFiscal);
-    setCpFiscal(item.cpFiscal);
-    setUsoCfdi(item.usoCfdi);
-    setFormaPago(item.formaPago);
+  const handleEdit = (billing: IFiscalDataResponse) => {
+    setEditingBilling(billing);
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setEditingIndex(null);
+    setEditingBilling(null);
   };
 
-  // Guardar datos fiscales (sin AddressForm)
-  const handleSaveFiscal = async () => {
-    const errs: ValidationErrors = {};
-
-    if (!razonSocial.trim()) errs.razonSocial = "La razón social o nombre es requerido";
-
-    if (!rfc.trim()) errs.rfc = "El RFC es requerido";
-    else if (!validarRFC(rfc)) errs.rfc = "El RFC no tiene un formato válido";
-
-    if (!correoFactura.trim()) errs.correoFactura = "El correo de facturación es requerido";
-    else if (!validarCorreo(correoFactura)) errs.correoFactura = "El correo no es válido";
-
-    if (!regimenFiscal.trim()) errs.regimenFiscal = "El régimen fiscal es requerido";
-
-    if (!cpFiscal.trim()) errs.cpFiscal = "El código postal fiscal es requerido";
-    else if (!/^\d{5}$/.test(cpFiscal)) errs.cpFiscal = "El código postal debe tener 5 dígitos";
-
-    if (!usoCfdi.trim()) errs.usoCfdi = "El uso de CFDI es requerido";
-    if (!formaPago.trim()) errs.formaPago = "La forma de pago es requerida";
-
-    if (Object.keys(errs).length) {
-      setValidationErrors(errs);
-      onError("Por favor completa los campos requeridos");
-      return;
+  const handleSaveSuccess = () => {
+    handleCloseModal();
+    onSuccess();
+    if (isMountedRef.current) {
+      loadBillingData();
     }
+  };
 
-    setIsLoading(true);
+  const handleDeleteClick = (billing: IFiscalDataResponse) => {
+    setBillingToDelete(billing);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!billingToDelete || !isMountedRef.current) return;
+
     try {
-      // Simular llamada API
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      const nuevo: IFiscalData = {
-        razonSocial,
-        rfc,
-        correoFactura,
-        regimenFiscal,
-        cpFiscal,
-        usoCfdi,
-        formaPago,
+      const param: IGenericParam = {
+        parametro: billingToDelete.idDatoFacturacion
       };
 
-      setFiscales(prev => {
-        if (editingIndex !== null) {
-          const copia = [...prev];
-          copia[editingIndex] = nuevo;
-          return copia;
-        }
-        return [...prev, nuevo];
-      });
+      const response = await deleteBilling(param);
 
-      onSuccess();
-      handleCloseModal();
+      if (!isMountedRef.current) return;
+
+      if (response && response.exito) {
+        onSuccess();
+        setShowDeleteModal(false);
+        setBillingToDelete(null);
+        loadBillingData();
+      } else {
+        onError(response?.mensaje || "Error al eliminar los datos de facturación");
+      }
     } catch (error) {
-      console.error("Error al guardar datos de facturación:", error);
-      onError("Error al guardar los datos de facturación");
-    } finally {
-      setIsLoading(false);
+      console.error("Error al eliminar datos de facturación:", error);
+      if (isMountedRef.current) {
+        onError("Error al eliminar los datos de facturación");
+      }
     }
   };
 
-  // Eliminar registro
-  const handleDelete = (index: number) => {
-    if (window.confirm("¿Estás seguro de eliminar estos datos de facturación?")) {
-      setFiscales(prev => prev.filter((_, i) => i !== index));
-    }
-  };
+  if (isLoadingCombos || isLoadingList) {
+    return (
+      <div className="text-center py-5">
+        <Spinner animation="border" variant="light" />
+        <p className="text-light mt-2">Cargando datos...</p>
+      </div>
+    );
+  }
 
   return (
     <Container fluid className="p-0" style={{ marginTop: "15px" }}>
-      {/* Header y botón */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h5 className="text-white profile-section-title mb-0">
-          <MapPin className="me-2" size={20} />
+          <Receipt className="me-2" size={20} />
           Datos de Facturación
         </h5>
-        <Button className="hub-btn-gamer" onClick={handleAddNew}>
+        <Button 
+          id="btnAgregarDataBilling"
+          className="hub-btn-gamer" 
+          onClick={handleAddNew}
+        >
           <Plus size={18} className="me-2" />
           Agregar Datos
         </Button>
       </div>
 
-      {/* Listado o vacío */}
       {fiscales.length === 0 ? (
         <Card className="bg-dark text-white border-secondary">
           <Card.Body className="text-center py-5">
-            <MapPin size={48} className="text-secondary mb-3" />
+            <Receipt size={48} className="text-secondary mb-3" />
             <p className="text-light mb-0">No hay datos de facturación registrados.</p>
             <p className="text-secondary small">Agrega un nuevo registro para continuar.</p>
           </Card.Body>
         </Card>
       ) : (
         <Row>
-          {fiscales.map((item, index) => (
-            <Col key={index} md={6} lg={4} className="mb-3">
-              <Card className="bg-dark text-white border-secondary h-100 address-card">
-                <Card.Body>
-                  <div className="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                      <h6 className="text-white mb-1">{item.razonSocial}</h6>
-                      <Badge bg="secondary" className="badge-address-type">Facturación</Badge>
-                    </div>
-                    <div className="d-flex gap-2">
-                      <Button variant="outline-light" size="sm" className="btn-icon-action" onClick={() => handleEdit(index)} title="Editar">
-                        <Edit2 size={16} />
-                      </Button>
-                      <Button variant="outline-danger" size="sm" className="btn-icon-action" onClick={() => handleDelete(index)} title="Eliminar">
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="address-details">
-                    <p className="mb-1 text-light"><strong>RFC:</strong> {item.rfc}</p>
-                    <p className="mb-1 text-light"><strong>Correo:</strong> {item.correoFactura}</p>
-                    <p className="mb-1 text-light"><strong>Régimen:</strong> {item.regimenFiscal}</p>
-                    <p className="mb-1 text-light"><strong>C.P. Fiscal:</strong> {item.cpFiscal}</p>
-                    <p className="mb-1 text-light"><strong>Uso CFDI:</strong> {item.usoCfdi}</p>
-                    <p className="mb-1 text-light"><strong>Forma de pago:</strong> {item.formaPago}</p>
-                  </div>
-                </Card.Body>
-              </Card>
+          {fiscales.map((item) => (
+            <Col key={item.idDatoFacturacion} md={6} className="mb-3">
+              <BillingCard
+                billing={item}
+                onEdit={() => handleEdit(item)}
+                onDelete={() => handleDeleteClick(item)}
+              />
             </Col>
           ))}
         </Row>
       )}
 
-      {/* Modal solo con datos fiscales */}
-      <Modal show={showModal} onHide={handleCloseModal} size="lg" centered className="address-modal">
-        <Modal.Header closeButton className="bg-dark text-white border-secondary">
-          <Modal.Title>{editingIndex !== null ? "Editar Datos de Facturación" : "Agregar Datos de Facturación"}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="bg-dark">
-          <Row className="mb-3">
-            <Col md={6}>
-              <Form.Group controlId="formRazonSocial">
-                <Form.Label>Razón social o nombre *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Razón social o nombre"
-                  value={razonSocial}
-                  onChange={(e) => setRazonSocial(e.target.value)}
-                  isInvalid={!!validationErrors.razonSocial}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {validationErrors.razonSocial}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="formCorreoFactura">
-                <Form.Label>Correo de facturación *</Form.Label>
-                <Form.Control
-                  type="email"
-                  placeholder="correo@ejemplo.com"
-                  value={correoFactura}
-                  onChange={(e) => setCorreoFactura(e.target.value)}
-                  isInvalid={!!validationErrors.correoFactura}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {validationErrors.correoFactura}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-          </Row>
+      <BillingFormModal
+        show={showModal}
+        onHide={handleCloseModal}
+        idCliente={idCliente}
+        editingBilling={editingBilling}
+        formasPago={formasPago}
+        metodosPago={metodosPago}
+        regimenesFiscales={regimenesFiscales}
+        usosCfdi={usosCfdi}
+        onSuccess={handleSaveSuccess}
+        onError={onError}
+      />
 
-          <Row className="mb-3">
-            <Col md={6}>
-              <Form.Group controlId="formRFC">
-                <Form.Label>RFC *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="RFC (12 o 13 caracteres)"
-                  value={rfc}
-                  onChange={handleRfcChange}
-                  name="rfc"
-                  maxLength={13}
-                  isInvalid={!!validationErrors.rfc}
-                  className="profile-rfc-input"
-                />
-                <Form.Control.Feedback type="invalid">
-                  {validationErrors.rfc}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="formCpFiscal">
-                <Form.Label>Código Postal Domicilio Fiscal *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Código Postal (5 dígitos)"
-                  value={cpFiscal}
-                  onChange={handleCpChange}
-                  maxLength={5}
-                  isInvalid={!!validationErrors.cpFiscal}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {validationErrors.cpFiscal}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Row className="mb-3">
-            <Col md={6}>
-              <Form.Group controlId="formRegimenFiscal">
-                <Form.Label>Régimen fiscal *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Régimen fiscal"
-                  value={regimenFiscal}
-                  onChange={(e) => setRegimenFiscal(e.target.value)}
-                  isInvalid={!!validationErrors.regimenFiscal}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {validationErrors.regimenFiscal}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group controlId="formFormaPago">
-                <Form.Label>Forma de pago *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Forma de pago"
-                  value={formaPago}
-                  onChange={(e) => setFormaPago(e.target.value)}
-                  isInvalid={!!validationErrors.formaPago}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {validationErrors.formaPago}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Row className="mb-3">
-            <Col md={6}>
-              <Form.Group controlId="formUsoCfdi">
-                <Form.Label>Uso de CFDI *</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Uso de CFDI"
-                  value={usoCfdi}
-                  onChange={(e) => setUsoCfdi(e.target.value)}
-                  isInvalid={!!validationErrors.usoCfdi}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {validationErrors.usoCfdi}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-          </Row>
-        </Modal.Body>
-        <Modal.Footer className="bg-dark border-secondary">
-          <Button variant="secondary" onClick={handleCloseModal}>Cancelar</Button>
-          <Button className="hub-btn-gamer" onClick={handleSaveFiscal} disabled={isLoading}>
-            {editingIndex !== null ? "Guardar cambios" : "Guardar"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <BillingDeleteModal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        billing={billingToDelete}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+      />
     </Container>
   );
 };

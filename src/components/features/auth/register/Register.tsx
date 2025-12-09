@@ -2,7 +2,7 @@
 import React, { useState, type ChangeEvent, useEffect } from "react";
 import { Form, Button, Container, Row, Col, OverlayTrigger, Tooltip } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeSlash, CheckCircleFill, Circle, TextareaT, ArrowUp, ArrowDown, Hash, Asterisk, ArrowUpCircle, ArrowDownCircleFill, ArrowUpCircleFill, Alphabet, AlphabetUppercase, Icon8CircleFill } from "react-bootstrap-icons";
+import { Eye, EyeSlash, CheckCircleFill, Circle, Hash, Asterisk, Alphabet, AlphabetUppercase, Icon8CircleFill } from "react-bootstrap-icons";
 
 import type { IRegistroUsuario } from "../../../../interfaces/registroUsuario";
 

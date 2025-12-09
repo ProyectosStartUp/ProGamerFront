@@ -104,6 +104,7 @@ const Login = () => {
           nombreUsuario: "",
           verificar2FA: false,
           token: "",
+          uKey: ""
         };
         user = Array.isArray(response.data) ? response.data[0] : response.data;
 
@@ -118,7 +119,9 @@ const Login = () => {
           localStorage.removeItem(REMEMBER_ME_KEY);
         }
 
-        setAuth(user.id, user.mail, user.nombreUsuario, user.verificar2FA);
+        setAuth(user.id, user.mail, user.nombreUsuario, user.verificar2FA,user.uKey!);
+
+        
         localStorage.setItem("token", user.token);
 
         if (user.verificar2FA) {

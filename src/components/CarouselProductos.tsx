@@ -3,9 +3,9 @@ import { Carousel, Row, Col } from "react-bootstrap";
 import CardOfertaFlash from "./CardOfertaFlash";
 
 const productos = [
-  { id: 1, nombre: "(1) Mouse gamer RGB", precioOriginal: 1290, precioOferta: 890, rating: 4.5, tiempoRestante: "00:15:42", imagen: "/demoMouse.png", linkDetalle: "/producto/1" },
-  { id: 2, nombre: "(2) Teclado mecánico", precioOriginal: 1990, precioOferta: 1450, rating: 4, tiempoRestante: "01:05:20", imagen: "/demoKeyboard.png", linkDetalle: "/producto/2" },
-  { id: 3, nombre: "(3) Audífonos inalámbricos", precioOriginal: 990, precioOferta: 750, rating: 4, tiempoRestante: "00:45:00", imagen: "/demoMonitor.png", linkDetalle: "/producto/3" },
+  { id: 1, nombre: "(1) Mouse gamer RGB", precioOriginal: 1290, precioOferta: 890, rating: 4.5, tiempoRestante: "00:15:42", imagen: "/demoMouse.png", linkDetalle: "/product/1" },
+  { id: 2, nombre: "(2) Teclado mecánico", precioOriginal: 1990, precioOferta: 1450, rating: 4, tiempoRestante: "01:05:20", imagen: "/demoKeyboard.png", linkDetalle: "/product/2" },
+  { id: 3, nombre: "(3) Audífonos inalámbricos", precioOriginal: 990, precioOferta: 750, rating: 4, tiempoRestante: "00:45:00", imagen: "/demoMonitor.png", linkDetalle: "/product/3" },
     {
     id: 4,
     nombre: "(4) Silla gamer mamalona bien agustín",

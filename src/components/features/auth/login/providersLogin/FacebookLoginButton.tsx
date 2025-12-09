@@ -117,6 +117,8 @@ const FacebookLoginButton: React.FC<FacebookLoginButtonProps> = ({
 
             const _data = Array.isArray(response?.data) ? response.data[0] : response?.data;
 
+            
+
             // Usuario existe pero no está activo
             if (response?.exito && !_data?.activo) {
               setShowSuccessToast(true);
@@ -129,13 +131,17 @@ const FacebookLoginButton: React.FC<FacebookLoginButtonProps> = ({
               setShowSuccessToast(true);
 
               let user: IUsuarioRespuesta = {
-                mail: "",
-                nombreUsuario: "",
-                verificar2FA: false,
-                token: "",
+                id:_data.id,
+                mail: _data.mail,
+                nombreUsuario: _data.nombreUsuario,
+                verificar2FA: _data.verificar2FA,
+                token: _data.token,
+                uKey: _data.uKey
               };
-              user = Array.isArray(response.data) ? response.data[0] : response.data;
-              setAuth(user.mail, user.nombreUsuario, user.verificar2FA);
+   
+
+              // user = Array.isArray(response.data) ? response.data[0] : response.data;
+              setAuth(user.id,user.mail, user.nombreUsuario, user.verificar2FA,_data.uKey);
               localStorage.setItem("token", user.token);
 
               if (user.verificar2FA) {

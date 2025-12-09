@@ -126,29 +126,6 @@
   top: 16px;
 }
 
-/* Nav Tabs Custom Styles */
-.nav-tabs .nav-link {
-  color: #aaa;
-  background-color: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  transition: all 0.3s ease;
-}
-
-.nav-tabs .nav-link:hover {
-  color: #fff;
-  border-color: transparent;
-  border-bottom-color: #666;
-}
-
-.nav-tabs .nav-link.active {
-  color: #32e956 !important;
-  background-color: #212121 !important;
-  border-color: transparent;
-  border-bottom-color: #32e956 !important;
-  font-weight: 600;
-}
-
 /* Tab Content Container - Fixed Height with Scroll */
 .profile-tab-content-container {
   min-height: 600px;

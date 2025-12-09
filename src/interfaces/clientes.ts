@@ -23,5 +23,24 @@ export interface IUsuario{
 } 
 
 
+export interface IPersonalData {
+  id: string;
+  idUsuario: string; 
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  telefono: string;
+  pathFoto: string;
+}
 
+export interface ISendDataPersonal {
+  idUsuario: string,
+  idCliente: string,
+  nombre: string,
+  apellidoP: string,
+  apellidoM: string,
+  telefono: string;
+  pathFoto: string;
 
+    
+}

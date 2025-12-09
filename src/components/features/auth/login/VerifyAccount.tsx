@@ -27,10 +27,10 @@ const VerifyAccount: React.FC = () => {
   
   const navigate = useNavigate();
 
-  // Manejar cambio en los inputs
+  // Manejar cambio en los inputs - SOLO NÚMEROS
   const handleInputChange = (index: number, value: string) => {
-    // Solo permitir un carácter alfanumérico
-    const sanitizedValue = value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    // Solo permitir números (0-9)
+    const sanitizedValue = value.replace(/[^0-9]/g, "");
     
     if (sanitizedValue.length <= 1) {
       const newCode = [...code];
@@ -58,13 +58,44 @@ const VerifyAccount: React.FC = () => {
     if (e.key === "ArrowRight" && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+
+    // Prevenir entrada de letras y caracteres especiales
+    const isNumber = /^[0-9]$/.test(e.key);
+    const isControlKey = [
+      "Backspace",
+      "Delete",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Home",
+      "End"
+    ].includes(e.key);
+    const isCopyPaste = (e.ctrlKey || e.metaKey) && ["c", "v", "x", "a"].includes(e.key.toLowerCase());
+
+    if (!isNumber && !isControlKey && !isCopyPaste) {
+      e.preventDefault();
+    }
   };
 
-  // Manejar pegado de código completo
+  // Manejar pegado de código completo - SOLO NÚMEROS
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    // Solo extraer números del texto pegado
+    const pastedData = e.clipboardData.getData("text").replace(/[^0-9]/g, "");
     
+    if (pastedData.length === 0) {
+      setRespuesta({
+        exito: false,
+        mensaje: '',
+        error: 'El código debe contener solo números',
+        data: []
+      });
+      setShowSuccessToast(true);
+      return;
+    }
+
     const newCode = [...code];
     for (let i = 0; i < Math.min(pastedData.length, 6); i++) {
       newCode[i] = pastedData[i];
@@ -86,6 +117,18 @@ const VerifyAccount: React.FC = () => {
         exito: false,
         mensaje: '',
         error: 'Capture los 6 dígitos enviados a su correo',
+        data: []
+      });
+      setShowSuccessToast(true);
+      return;
+    }
+
+    // Validar que todos sean números
+    if (!/^\d{6}$/.test(verificationCode)) {
+      setRespuesta({
+        exito: false,
+        mensaje: '',
+        error: 'El código debe contener solo números',
         data: []
       });
       setShowSuccessToast(true);
@@ -189,7 +232,7 @@ const VerifyAccount: React.FC = () => {
                 Verifica tu cuenta
               </h2>
               <p className="text-light" style={{ fontSize: "14px", opacity: 0.8 }}>
-                Ingresa el código de 6 caracteres que enviamos a tu correo electrónico
+                Ingresa el código de 6 dígitos que enviamos a tu correo electrónico
               </p>
             </div>
 
@@ -202,6 +245,8 @@ const VerifyAccount: React.FC = () => {
                       inputRefs.current[index] = el;
                     }}
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     maxLength={1}
                     value={digit}
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>

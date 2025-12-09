@@ -9,6 +9,7 @@ const initialState: AuthState = {
   mail: null,
   nombreUsuario: null,
   verificar2FA: false,
+  uKey: null,
 };
 
 export const useAuthStore = create<AuthStore>()(
@@ -18,17 +19,22 @@ export const useAuthStore = create<AuthStore>()(
       ...initialState,
 
       // Método para establecer todos los datos de autenticación
-      setAuth: (id, mail, nombreUsuario, verificar2FA) => 
+      setAuth: (id, mail, nombreUsuario, verificar2FA,uKey) => 
         set({ 
           id,
           mail, 
           nombreUsuario, 
-          verificar2FA 
+          verificar2FA,
+          uKey
         }),
 
       // Método para establecer solo el id
       setId: (id) => 
         set({ id }),
+
+      // Método para establecer solo el uKey
+      setUkey: (uKey) => 
+        set({ uKey }),
 
       // Método para establecer solo el mail
       setMail: (mail) => 
@@ -62,11 +68,11 @@ export const useAuthStore = create<AuthStore>()(
 );
 
 export const useAuthData = () => {
-  const { id, mail, nombreUsuario, verificar2FA } = useAuthStore();
-  return { id, mail, nombreUsuario, verificar2FA };
+  const { id, mail, nombreUsuario, verificar2FA,uKey} = useAuthStore();
+  return { id, mail, nombreUsuario, verificar2FA , uKey};
 };
 
 export const useAuthActions = () => {
-  const { setAuth, setId, setMail, setNombreUsuario, setVerificar2FA, clearAuth, isAuthenticated } = useAuthStore();
-  return { setAuth, setId, setMail, setNombreUsuario, setVerificar2FA, clearAuth, isAuthenticated };
+  const { setAuth, setId, setMail, setNombreUsuario, setVerificar2FA, clearAuth, isAuthenticated, uKey} = useAuthStore();
+  return { setAuth, setId, setMail, setNombreUsuario, setVerificar2FA, clearAuth, isAuthenticated,uKey };
 };

@@ -13,6 +13,7 @@ import Profile from "../components/features/auth/profile/Profile";
 import ForgotPassword from "../components/features/auth/login/ForgotPassword";
 import ResetPassword from "../components/features/auth/login/ResetPassword";
 import RegisterSocial from "../components/features/auth/register/RegisterSocial";
+import ProductDetail from "../components/features/poducts/productDetails";
 
 
 
@@ -33,10 +34,11 @@ const AppRoutes = () => {
         <Routes>
           <Route path="/" element={<Layout/>} >
             {routes.map(({ path, component: Component }) => (
-            <Route key={path} path={path} element={<Component />} />
-          ))}
-            
+              <Route key={path} path={path} element={<Component />} />
+            ))}
+            <Route path="/product/:productId" element={<ProductDetail productId="" />} />
           </Route>
+          
           <Route path="/forgotPassword" element={<ForgotPassword />} />
           <Route path="/resetPassword" element={<ResetPassword />} />
 
